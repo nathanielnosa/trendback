@@ -23,4 +23,68 @@ urlpatterns = [
     path("forgot-password/",ForgotPasswordView.as_view(),name="forgot-password"),
 
     path("reset-password/",ResetPasswordView.as_view(),name="reset-password"),
+
+
+    # ============================================================
+# ROLE & PERMISSION TEST ROUTES
+# ============================================================
+
+path(
+    "test/admin/",
+    AdminPermissionTestView.as_view(),
+    name="test-admin-permission",
+),
+
+path(
+    "test/editor/",
+    EditorPermissionTestView.as_view(),
+    name="test-editor-permission",
+),
+
+path(
+    "test/author/",
+    AuthorPermissionTestView.as_view(),
+    name="test-author-permission",
+),
+
+path(
+    "test/contributor/",
+    ContributorPermissionTestView.as_view(),
+    name="test-contributor-permission",
+),
+
+path(
+    "test/subscriber/",
+    SubscriberPermissionTestView.as_view(),
+    name="test-subscriber-permission",
+),
+
+path(
+    "test/create-post/",
+    CreatePostPermissionTestView.as_view(),
+    name="test-create-post-permission",
+),
+
+path(
+    "test/publish-post/",
+    PublishPostPermissionTestView.as_view(),
+    name="test-publish-post-permission",
+),
+
+path(
+    "test/review-post/",
+    ReviewPostPermissionTestView.as_view(),
+    name="test-review-post-permission",
+),
+
+path(
+    "test/manage-users/",
+    ManageUsersPermissionTestView.as_view(),
+    name="test-manage-users-permission",
+),
+
+path(
+    "test/analytics/",AnalyticsPermissionTestView.as_view(),
+    name="test-analytics-permission",
+),
 ]

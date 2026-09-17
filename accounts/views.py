@@ -17,6 +17,19 @@ from .services import (create_auth_token,
                        send_password_reset_email,
                        rotate_refresh_token)
 
+from .permissions import (
+    IsAdmin,
+    IsEditor,
+    IsAuthor,
+    IsContributor,
+    IsSubscriber,
+    CanCreatePost,
+    CanPublishPost,
+    CanReviewPost,
+    CanManageUsers,
+    CanViewAnalytics,
+)
+
 
 '''
 ================== **** ===============
@@ -26,7 +39,7 @@ from .services import (create_auth_token,
 # :::: REGISTRATION
 class RegisterView(APIView):
     permission_classes = [AllowAny]
-    def post(self, request):
+    def post(self, request,*args, **kwargs):
 
         serializer = RegisterSerializer(data=request.data)
 
@@ -64,7 +77,7 @@ class RegisterView(APIView):
 class VerifyEmailView(APIView):
     permission_classes = [AllowAny]
 
-    def post(self, request):
+    def post(self, request,*args, **kwargs):
         raw_token = request.data.get("token")
         if not raw_token:
 
@@ -143,7 +156,7 @@ class ResendVerificationView(APIView):
 
     permission_classes = [AllowAny]
 
-    def post(self, request):
+    def post(self, request,*args, **kwargs):
 
         email = request.data.get("email")
 
@@ -209,7 +222,7 @@ class ResendVerificationView(APIView):
 class LoginView(APIView):
 
     permission_classes = [AllowAny]
-    def post(self, request):
+    def post(self, request,*args, **kwargs):
         serializer = LoginSerializer(data=request.data)
 
         if not serializer.is_valid():
@@ -271,7 +284,7 @@ class ForgotPasswordView(APIView):
 
     permission_classes = [AllowAny]
 
-    def post(self, request):
+    def post(self, request,*args, **kwargs):
 
         email = request.data.get("email")
 
@@ -405,7 +418,7 @@ class ResetPasswordView(APIView):
 class RefreshTokenView(APIView):
     permission_classes = [AllowAny]
 
-    def post(self, request):
+    def post(self, request,*args, **kwargs):
 
         refresh_token = request.data.get("refresh")
 
@@ -455,11 +468,12 @@ class RefreshTokenView(APIView):
                 },
                 status=status.HTTP_403_FORBIDDEN
             )
+
 # :::: LOGOUT
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def post(self, request):
+    def post(self, request,*args, **kwargs):
 
         refresh_token = request.data.get("refresh")
 
@@ -499,7 +513,7 @@ class MeView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def get(self, request):
+    def get(self, request,*args, **kwargs):
 
         user = request.user
 
@@ -527,7 +541,7 @@ class MeView(APIView):
 class ChangePasswordView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def post(self, request):
+    def post(self, request,*args, **kwargs):
 
         serializer = ChangePasswordSerializer(
             data=request.data
@@ -579,4 +593,165 @@ class ChangePasswordView(APIView):
                 "message": "Password changed successfully."
             },
             status=status.HTTP_200_OK
+        )
+
+# ============================================================
+# ROLE & PERMISSION TEST VIEWS
+# ============================================================
+class AdminPermissionTestView(APIView):
+    permission_classes = [IsAdmin]
+    def get(self, request):
+        return Response(
+            {
+                "message": "Admin permission granted.",
+                "role": request.user.role,
+                "user": request.user.email,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+class EditorPermissionTestView(APIView):
+
+    permission_classes = [IsEditor]
+
+    def get(self, request):
+        return Response(
+            {
+                "message": "Editor permission granted.",
+                "role": request.user.role,
+                "user": request.user.email,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+class AuthorPermissionTestView(APIView):
+
+    permission_classes = [IsAuthor]
+
+    def get(self, request):
+        return Response(
+            {
+                "message": "Author permission granted.",
+                "role": request.user.role,
+                "user": request.user.email,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+class ContributorPermissionTestView(APIView):
+
+    permission_classes = [IsContributor]
+
+    def get(self, request):
+        return Response(
+            {
+                "message": "Contributor permission granted.",
+                "role": request.user.role,
+                "user": request.user.email,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+class SubscriberPermissionTestView(APIView):
+
+    permission_classes = [IsSubscriber]
+
+    def get(self, request):
+        return Response(
+            {
+                "message": "Subscriber permission granted.",
+                "role": request.user.role,
+                "user": request.user.email,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+class CreatePostPermissionTestView(APIView):
+
+    permission_classes = [CanCreatePost]
+
+    def get(self, request):
+        return Response(
+            {
+                "message": "You are allowed to create posts.",
+                "role": request.user.role,
+                "user": request.user.email,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+class PublishPostPermissionTestView(APIView):
+
+    permission_classes = [CanPublishPost]
+
+    def get(self, request):
+        return Response(
+            {
+                "message": "You are allowed to publish posts.",
+                "role": request.user.role,
+                "user": request.user.email,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+class ReviewPostPermissionTestView(APIView):
+
+    permission_classes = [CanReviewPost]
+
+    def get(self, request):
+        return Response(
+            {
+                "message": "You are allowed to review posts.",
+                "role": request.user.role,
+                "user": request.user.email,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+class ManageUsersPermissionTestView(APIView):
+
+    permission_classes = [CanManageUsers]
+
+    def get(self, request):
+        return Response(
+            {
+                "message": "You are allowed to manage users.",
+                "role": request.user.role,
+                "user": request.user.email,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+
+
+    permission_classes = [CanViewAnalytics]
+
+    def get(self, request):
+        return Response(
+            {
+                "message": "You are allowed to view analytics.",
+                "role": request.user.role,
+                "user": request.user.email,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+class AnalyticsPermissionTestView(APIView):
+    """
+    Test endpoint for CanViewAnalytics.
+
+    ADMIN and EDITOR are allowed.
+    """
+
+    permission_classes = [CanViewAnalytics]
+
+    def get(self, request):
+        return Response(
+            {
+                "message": "You are allowed to view analytics.",
+                "role": request.user.role,
+                "user": request.user.email,
+            },
+            status=status.HTTP_200_OK,
         )
