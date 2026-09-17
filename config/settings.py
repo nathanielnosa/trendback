@@ -188,6 +188,9 @@ REST_FRAMEWORK = {
     "ALLOWED_VERSIONS": [
         "v1",
     ],
+
+    # EXCEPTION HANDLING
+    "EXCEPTION_HANDLER": "core.exceptions.custom_exception_handler",
 }
 
 SIMPLE_JWT = {
@@ -198,4 +201,103 @@ SIMPLE_JWT = {
     "BLACKLIST_AFTER_ROTATION": True,
 
     "AUTH_HEADER_TYPES": ("Bearer",),
+}
+
+# ============================================================
+# LOGGING CONFIGURATION
+# ============================================================
+
+LOG_DIR = BASE_DIR / "logs"
+
+LOG_DIR.mkdir(exist_ok=True)
+
+
+LOGGING = {
+    "version": 1,
+
+    "disable_existing_loggers": False,
+
+    "formatters": {
+
+        "verbose": {
+            "format": (
+                "{levelname} "
+                "{asctime} "
+                "{name} "
+                "{message}"
+            ),
+            "style": "{",
+        },
+
+        "simple": {
+            "format": (
+                "{levelname} "
+                "{message}"
+            ),
+            "style": "{",
+        },
+    },
+
+    "handlers": {
+
+        # ----------------------------------------------------
+        # GENERAL APPLICATION LOG
+        # ----------------------------------------------------
+
+        "django_file": {
+            "class": "logging.FileHandler",
+            "filename": LOG_DIR / "django.log",
+            "formatter": "verbose",
+        },
+
+        # ----------------------------------------------------
+        # ERROR LOG
+        # ----------------------------------------------------
+
+        "error_file": {
+            "class": "logging.FileHandler",
+            "filename": LOG_DIR / "errors.log",
+            "formatter": "verbose",
+            "level": "ERROR",
+        },
+
+        # ----------------------------------------------------
+        # CONSOLE
+        # ----------------------------------------------------
+
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "simple",
+        },
+    },
+
+    "loggers": {
+
+        # ----------------------------------------------------
+        # DJANGO
+        # ----------------------------------------------------
+
+        "django": {
+            "handlers": [
+                "console",
+                "django_file",
+            ],
+            "level": "INFO",
+            "propagate": False,
+        },
+
+        # ----------------------------------------------------
+        # BACKBLOG APPLICATION
+        # ----------------------------------------------------
+
+        "backblog": {
+            "handlers": [
+                "console",
+                "django_file",
+                "error_file",
+            ],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
 }

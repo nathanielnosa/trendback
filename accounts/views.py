@@ -1,3 +1,4 @@
+import logging
 from django.contrib.auth import authenticate
 from django.utils import timezone
 
@@ -29,6 +30,8 @@ from .permissions import (
     CanManageUsers,
     CanViewAnalytics,
 )
+
+logger = logging.getLogger("backblog")
 
 
 '''
@@ -67,7 +70,7 @@ class RegisterView(APIView):
                 },
                 status=status.HTTP_201_CREATED
             )
-
+        logger.info("User registered successfully: %s",user.email)
         return Response(
             serializer.errors,
             status=status.HTTP_400_BAD_REQUEST
@@ -136,6 +139,7 @@ class VerifyEmailView(APIView):
                 "updated_at"
             ]
         )
+        logger.info("Email verified successfully: %s",user.email)
 
         auth_token.used_at = timezone.now()
 
@@ -170,9 +174,7 @@ class ResendVerificationView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        user = User.objects.filter(
-            email=email.lower().strip()
-        ).first()
+        user = User.objects.filter(email=email.lower().strip()).first()
 
         # Don't reveal whether an account exists.
         if not user:
@@ -209,7 +211,7 @@ class ResendVerificationView(APIView):
             user,
             verification_url
         )
-
+        logger.info("Verification email requested: %s",user.email)
         return Response(
             {
                 "message":
@@ -232,7 +234,7 @@ class LoginView(APIView):
         password = serializer.validated_data["password"]
 
         user = authenticate(request=request,username=email,password=password)
-
+        logger.info("User logged in successfully: %s",user.email,)
         if user is None:
             return Response(
                 {
@@ -240,6 +242,7 @@ class LoginView(APIView):
                 },
                 status=status.HTTP_401_UNAUTHORIZED
             )
+        logger.warning("Failed login attempt: %s",email)
 
         if not user.is_active:
             return Response(
@@ -320,6 +323,7 @@ class ForgotPasswordView(APIView):
                 user,
                 reset_url
             )
+            logger.info("Password reset requested: %s",user.email)
 
         return Response(
             {
@@ -399,6 +403,7 @@ class ResetPasswordView(APIView):
                 "updated_at"
             ]
         )
+        logger.info("Password reset completed: %s", user.email)
 
         auth_token.used_at = timezone.now()
 
@@ -433,7 +438,8 @@ class RefreshTokenView(APIView):
         try:
 
             tokens = rotate_refresh_token(refresh_token)
-
+            logger.info("Access token refreshed: %s",
+            request.user.email if request.user.is_authenticated else "anonymous")
             return Response(
                 {
                     "message": "Token refreshed successfully.",
@@ -491,6 +497,7 @@ class LogoutView(APIView):
             token = RefreshToken(refresh_token)
 
             token.blacklist()
+            logger.info("User logged out successfully: %s",request.user.email)
 
             return Response(
                 {
@@ -587,6 +594,7 @@ class ChangePasswordView(APIView):
                 "updated_at"
             ]
         )
+        logger.info("Password changed successfully: %s",request.user.email)
 
         return Response(
             {
@@ -595,6 +603,19 @@ class ChangePasswordView(APIView):
             status=status.HTTP_200_OK
         )
 
+# ============================================================
+# SERVER ERROR TEST VIEW
+# ============================================================
+class ServerErrorTestView(APIView):
+    """
+    This endpoint intentionally raises an exception.
+    """
+    permission_classes = [AllowAny]
+
+    def get(self, request, *args, **kwargs):
+
+        raise Exception("This is a test server error.")
+    
 # ============================================================
 # ROLE & PERMISSION TEST VIEWS
 # ============================================================

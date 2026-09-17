@@ -24,6 +24,8 @@ urlpatterns = [
 
     path("reset-password/",ResetPasswordView.as_view(),name="reset-password"),
 
+    path("server-error/",ServerErrorTestView.as_view(),name="server-error"),
+
 
     # ============================================================
 # ROLE & PERMISSION TEST ROUTES
