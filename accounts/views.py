@@ -18,19 +18,6 @@ from .services import (create_auth_token,
                        send_password_reset_email,
                        rotate_refresh_token)
 
-from .permissions import (
-    IsAdmin,
-    IsEditor,
-    IsAuthor,
-    IsContributor,
-    IsSubscriber,
-    CanCreatePost,
-    CanPublishPost,
-    CanReviewPost,
-    CanManageUsers,
-    CanViewAnalytics,
-)
-
 logger = logging.getLogger("backblog")
 
 
@@ -234,7 +221,7 @@ class LoginView(APIView):
         password = serializer.validated_data["password"]
 
         user = authenticate(request=request,username=email,password=password)
-        logger.info("User logged in successfully: %s",user.email,)
+        
         if user is None:
             return Response(
                 {
@@ -259,6 +246,7 @@ class LoginView(APIView):
                 },
                 status=status.HTTP_403_FORBIDDEN
             )
+        logger.info("User logged in successfully: %s",user.email)
 
         refresh = RefreshToken.for_user(user)
 
