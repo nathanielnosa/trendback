@@ -4,6 +4,7 @@ from rest_framework import status
 from rest_framework.permissions import AllowAny
 
 from django.utils import timezone
+from django.db import models
 
 from accounts.permissions import (
     CanCreatePost,
@@ -50,11 +51,20 @@ class PostListCreateView(APIView):
                         .select_related("author", "category")
                         .prefetch_related("tags")
                  )
+        # filtering
         category = request.query_params.get("category")
         tag = request.query_params.get("tag")
         author = request.query_params.get("author")
         featured = request.query_params.get("featured")
         trending = request.query_params.get("trending")
+        # search
+        search = request.query_params.get("search")
+        if search:
+            posts = posts.filter(
+                models.Q(title__icontains=search)
+                | models.Q(excerpt__icontains=search)
+                | models.Q(content__icontains=search) 
+            )
 
         if category:
             posts = posts.filter(category__slug=category)
