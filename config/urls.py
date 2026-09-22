@@ -7,4 +7,5 @@ urlpatterns = [
     path("api/", include("core.urls")),
     path("api/<str:version>/auth/", include("accounts.urls")),
     path("api/<str:version>/blog/", include("blog.urls")),
+    path("api/<str:version>/comments/", include("comments.urls")),
 ]
