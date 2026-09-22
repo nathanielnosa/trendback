@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import Comment
-from .serializers import CommentSerializer
+from .serializers import (CommentSerializer, CommentModerationSerializer)
 
 from accounts.permissions import CanManageComments
 
@@ -153,6 +153,88 @@ class CommentDetailView(APIView):
             {"message": "Comment deleted successfully."},
             status=status.HTTP_200_OK
         )
+# =========================
+# COMMENT MODERATION VIEW
+# =========================
+class CommentModerationView(APIView):
+
+    permission_classes = [CanManageComments]
+
+    def get_object(self, comment_id):
+        try:
+            return Comment.objects.select_related(
+                "author",
+                "post"
+            ).get(id=comment_id)
+        except Comment.DoesNotExist:
+            return None
+
+    def post(self, request, comment_id,*args,**kwargs):
+        comment = self.get_object(comment_id)
+
+        if not comment:
+            return Response(
+                {"message": "Comment not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        if comment.status != Comment.Status.PENDING:
+            return Response(
+                {
+                    "message": (
+                        "Only pending comments can be moderated."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        serializer = CommentModerationSerializer(
+            data=request.data
+        )
+
+        if not serializer.is_valid():
+            return Response(
+                serializer.errors,
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        action = serializer.validated_data["action"]
+
+        if action == "approve":
+            comment.status = Comment.Status.APPROVED
+
+            comment.save(
+                update_fields=["status", "updated_at"]
+            )
+
+            return Response(
+                {
+                    "message": "Comment approved successfully.",
+                    "comment": CommentSerializer(
+                        comment,
+                        context={"request": request}
+                    ).data,
+                },
+                status=status.HTTP_200_OK
+            )
+
+        if action == "reject":
+            comment.status = Comment.Status.REJECTED
+
+            comment.save(
+                update_fields=["status", "updated_at"]
+            )
+
+            return Response(
+                {
+                    "message": "Comment rejected successfully.",
+                    "comment": CommentSerializer(
+                        comment,
+                        context={"request": request}
+                    ).data,
+                },
+                status=status.HTTP_200_OK
+            )
 # =========================
 # COMMENT DETAILS VIEW
 # =========================

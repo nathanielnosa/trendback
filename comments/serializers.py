@@ -89,3 +89,19 @@ class CommentSerializer(serializers.ModelSerializer):
                 )
 
         return attrs
+
+# comment moderation
+class CommentModerationSerializer(serializers.Serializer):
+    action = serializers.ChoiceField(
+        choices=["approve", "reject"]
+    )
+
+    def validate(self, attrs):
+        action = attrs.get("action")
+
+        if action not in ["approve", "reject"]:
+            raise serializers.ValidationError(
+                {"action": "Invalid moderation action."}
+            )
+
+        return attrs

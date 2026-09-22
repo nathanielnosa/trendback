@@ -253,7 +253,6 @@ class CanReviewPost(BasePermission):
 # USER MANAGEMENT PERMISSIONS
 # ============================================================
 
-
 class CanManageUsers(BasePermission):
     """
     Allows access to user-management features.
@@ -277,7 +276,6 @@ class CanManageUsers(BasePermission):
 # ============================================================
 # COMMENT PERMISSIONS
 # ============================================================
-
 
 class CanManageComments(BasePermission):
     """
