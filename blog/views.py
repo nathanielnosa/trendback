@@ -26,6 +26,7 @@ from .serializers import (
     PostPublishSerializer,
     PostSubmitReviewSerializer
 )
+from .pagination import PostPagination
 
 
 # =============================
@@ -86,7 +87,11 @@ class PostListCreateView(APIView):
             )
 
         posts = posts.distinct()
-        serializer = PostSerializer(posts, many=True)
+        # pagination
+        paginator = PostPagination()
+        page = paginator.paginate_queryset(posts, request)
+        
+        serializer = PostSerializer(page, many=True)
         return Response(serializer.data,status=status.HTTP_200_OK)
 
     # :::create post
