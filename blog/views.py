@@ -50,6 +50,32 @@ class PostListCreateView(APIView):
                         .select_related("author", "category")
                         .prefetch_related("tags")
                  )
+        category = request.query_params.get("category")
+        tag = request.query_params.get("tag")
+        author = request.query_params.get("author")
+        featured = request.query_params.get("featured")
+        trending = request.query_params.get("trending")
+
+        if category:
+            posts = posts.filter(category__slug=category)
+
+        if tag:
+            posts = posts.filter(tags__slug=tag)
+
+        if author:
+            posts = posts.filter(author__id=author)
+
+        if featured:
+            posts = posts.filter(
+                is_featured=featured.lower() == "true"
+            )
+
+        if trending:
+            posts = posts.filter(
+                is_trending=trending.lower() == "true"
+            )
+
+        posts = posts.distinct()
         serializer = PostSerializer(posts, many=True)
         return Response(serializer.data,status=status.HTTP_200_OK)
 
