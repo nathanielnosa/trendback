@@ -690,7 +690,7 @@ class PostSubmitReviewView(APIView):
         except Post.DoesNotExist:
             return None
 
-    def post(self, request, post_id):
+    def post(self, request, post_id,*args,**kwargs):
 
         post = self.get_object(post_id)
 
