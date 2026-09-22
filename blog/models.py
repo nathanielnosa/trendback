@@ -1,6 +1,6 @@
 from django.db import models
 from django.conf import settings
-
+from django.utils.text import slugify
 import uuid
 
 
@@ -43,6 +43,8 @@ class Tag(models.Model):
 class Post(models.Model):
     class Status(models.TextChoices):
         DRAFT = "draft", "Draft"
+        UNDER_REVIEW = "under_review", "Under Review"
+        APPROVED = "approved", "Approved"
         PUBLISHED = "published", "Published"
         ARCHIVED = "archived", "Archived"
 
@@ -65,6 +67,10 @@ class Post(models.Model):
     visibility = models.CharField(max_length=20,choices=Visibility.choices,default=Visibility.PUBLIC)
     published_at = models.DateTimeField(null=True,blank=True)
     scheduled_at = models.DateTimeField(null=True,blank=True)
+
+    reviewed_at = models.DateTimeField(null=True,blank=True)
+    reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.SET_NULL,null=True,blank=True,related_name="reviewed_posts")
+    review_notes = models.TextField(blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -93,6 +99,20 @@ class Post(models.Model):
 
     def __str__(self):
         return self.title
+    # slug auto
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            base_slug = slugify(self.title)
+            slug = base_slug
+            counter = 1
+
+            while Post.objects.filter(slug=slug).exclude(pk=self.pk).exists():
+                slug = f"{base_slug}-{counter}"
+                counter += 1
+
+            self.slug = slug
+
+        super().save(*args, **kwargs)
 
     def is_published(self):
         return self.status == self.Status.PUBLISHED

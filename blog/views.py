@@ -3,12 +3,17 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 
+from django.utils import timezone
+
 from accounts.permissions import (
     CanCreatePost,
     CanEditPost,
     CanDeletePost,
     IsAdmin,
     IsEditor,
+    CanReviewPost,
+    CanPublishPost
+
 )
 
 from .models import Post, Category, Tag
@@ -16,13 +21,15 @@ from .serializers import (
     PostSerializer,
     CategorySerializer,
     TagSerializer,
+    PostReviewSerializer,
+    PostPublishSerializer,
+    PostSubmitReviewSerializer
 )
 
 
 # =============================
 # POST LIST / CREATE
 # =============================
-
 class PostListCreateView(APIView):
     def get_permissions(self):
         if self.request.method == "GET":
@@ -35,7 +42,14 @@ class PostListCreateView(APIView):
 
     # :::get all post
     def get(self, request,*args,**kwargs):
-        posts = (Post.objects.select_related("author", "category").prefetch_related("tags"))
+        posts = (Post.objects
+                 .filter(
+                            status=Post.Status.PUBLISHED,
+                            visibility=Post.Visibility.PUBLIC,
+                        )
+                        .select_related("author", "category")
+                        .prefetch_related("tags")
+                 )
         serializer = PostSerializer(posts, many=True)
         return Response(serializer.data,status=status.HTTP_200_OK)
 
@@ -49,11 +63,9 @@ class PostListCreateView(APIView):
 
         return Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST)
 
-
 # ==========================
 # POST DETAIL
 # ==========================
-
 class PostDetailView(APIView):
     def get_permissions(self):
 
@@ -80,6 +92,9 @@ class PostDetailView(APIView):
     def get(self, request, post_id,*args ,**kwargs):
         post = self.get_object(post_id)
         if not post:
+            return Response({"message": "Post not found."},status=status.HTTP_404_NOT_FOUND)
+            
+        if(post.status != Post.Status.PUBLISHED or post.visibility != Post.Visibility.PUBLIC):
             return Response({"message": "Post not found."},status=status.HTTP_404_NOT_FOUND)
 
         serializer = PostSerializer(post)
@@ -137,11 +152,9 @@ class PostDetailView(APIView):
             status=status.HTTP_204_NO_CONTENT
         )
 
-
 # ===============================
 # CATEGORY LIST / CREATE
 # ===============================
-
 class CategoryListCreateView(APIView):
 
     def get_permissions(self):
@@ -189,7 +202,6 @@ class CategoryListCreateView(APIView):
 # =========================
 # CATEGORY DETAIL
 # =========================
-
 class CategoryDetailView(APIView):
 
     def get_permissions(self):
@@ -291,11 +303,9 @@ class CategoryDetailView(APIView):
             status=status.HTTP_204_NO_CONTENT
         )
 
-
 # ============================
 # TAG LIST / CREATE
 # ============================
-
 class TagListCreateView(APIView):
 
     def get_permissions(self):
@@ -340,11 +350,9 @@ class TagListCreateView(APIView):
             status=status.HTTP_400_BAD_REQUEST
         )
 
-
 # ===========================
 # TAG DETAIL
 # ===========================
-
 class TagDetailView(APIView):
 
     def get_permissions(self):
@@ -443,4 +451,252 @@ class TagDetailView(APIView):
         return Response(
             {"message": "Tag deleted successfully."},
             status=status.HTTP_204_NO_CONTENT
+        )
+
+# =============================
+# POST REVIEW
+# =============================
+class PostReviewView(APIView):
+    permission_classes = [CanReviewPost]
+
+    def get_object(self, post_id):
+        try:
+            return Post.objects.get(id=post_id)
+        except Post.DoesNotExist:
+            return None
+
+    def post(self, request, post_id,*args,**kwargs):
+        post = self.get_object(post_id)
+        if not post:
+            return Response({"message": "Post not found."},status=status.HTTP_404_NOT_FOUND)
+        if post.status != Post.Status.UNDER_REVIEW:
+            return Response(
+                {
+                    {"message": "Only posts under review can be reviewed."},
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        serializer = PostReviewSerializer(data=request.data)
+
+        if not serializer.is_valid():
+            return Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST)
+
+        action = serializer.validated_data["action"]
+        review_notes = serializer.validated_data.get("review_notes","")
+
+        if action == "approve":
+            post.status = Post.Status.APPROVED
+            post.reviewed_by = request.user
+            post.reviewed_at = timezone.now()
+            post.review_notes = review_notes
+
+            post.save(
+                update_fields=[
+                    "status",
+                    "reviewed_by",
+                    "reviewed_at",
+                    "review_notes",
+                    "updated_at",
+                ]
+            )
+
+            return Response(
+                {
+                    "message": "Post approved successfully.",
+                    "post": PostSerializer(post).data,
+                },
+                status=status.HTTP_200_OK
+            )
+
+        if action == "reject":
+            post.status = Post.Status.DRAFT
+            post.reviewed_by = request.user
+            post.reviewed_at = timezone.now()
+            post.review_notes = review_notes
+
+            post.save(
+                update_fields=[
+                    "status",
+                    "reviewed_by",
+                    "reviewed_at",
+                    "review_notes",
+                    "updated_at",
+                ]
+            )
+
+            return Response(
+                {
+                    "message": "Post rejected and returned to draft.",
+                    "post": PostSerializer(post).data,
+                },
+                status=status.HTTP_200_OK
+            )
+
+# =============================
+# POST PUBLISH
+# =============================
+class PostPublishView(APIView):
+
+    permission_classes = [CanPublishPost]
+
+    def get_object(self, post_id):
+        try:
+            return Post.objects.get(id=post_id)
+        except Post.DoesNotExist:
+            return None
+
+    def post(self, request, post_id,*args,**kwargs):
+
+        post = self.get_object(post_id)
+
+        if not post:
+            return Response(
+                {"message": "Post not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        if post.status != Post.Status.APPROVED:
+            return Response(
+                {
+                    "message": (
+                        "Only approved posts can be published "
+                        "or scheduled."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        serializer = PostPublishSerializer(
+            data=request.data
+        )
+
+        if not serializer.is_valid():
+            return Response(
+                serializer.errors,
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        action = serializer.validated_data["action"]
+
+        if action == "publish":
+
+            post.status = Post.Status.PUBLISHED
+            post.published_at = timezone.now()
+            post.scheduled_at = None
+
+            post.save(
+                update_fields=[
+                    "status",
+                    "published_at",
+                    "scheduled_at",
+                    "updated_at",
+                ]
+            )
+
+            return Response(
+                {
+                    "message": "Post published successfully.",
+                    "post": PostSerializer(post).data,
+                },
+                status=status.HTTP_200_OK
+            )
+
+        if action == "schedule":
+
+            scheduled_at = serializer.validated_data[
+                "scheduled_at"
+            ]
+
+            if scheduled_at <= timezone.now():
+                return Response(
+                    {
+                        "scheduled_at": (
+                            "Scheduled time must be in the future."
+                        )
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            post.scheduled_at = scheduled_at
+
+            post.save(
+                update_fields=[
+                    "scheduled_at",
+                    "updated_at",
+                ]
+            )
+
+            return Response(
+                {
+                    "message": (
+                        "Post scheduled for publication successfully."
+                    ),
+                    "post": PostSerializer(post).data,
+                },
+                status=status.HTTP_200_OK
+            )
+
+# =============================
+# POST SUBMIT FOR REVIEW
+# =============================
+class PostSubmitReviewView(APIView):
+
+    permission_classes = [CanEditPost]
+
+    def get_object(self, post_id):
+        try:
+            return Post.objects.get(id=post_id)
+        except Post.DoesNotExist:
+            return None
+
+    def post(self, request, post_id):
+
+        post = self.get_object(post_id)
+
+        if not post:
+            return Response(
+                {"message": "Post not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        self.check_object_permissions(request, post)
+
+        if post.status != Post.Status.DRAFT:
+            return Response(
+                {
+                    "message": (
+                        "Only draft posts can be "
+                        "submitted for review."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        serializer = PostSubmitReviewSerializer(
+            data=request.data
+        )
+
+        if not serializer.is_valid():
+            return Response(
+                serializer.errors,
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        post.status = Post.Status.UNDER_REVIEW
+
+        post.save(
+            update_fields=[
+                "status",
+                "updated_at",
+            ]
+        )
+
+        return Response(
+            {
+                "message": (
+                    "Post submitted for review successfully."
+                ),
+                "post": PostSerializer(post).data,
+            },
+            status=status.HTTP_200_OK
         )
