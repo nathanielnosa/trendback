@@ -43,7 +43,8 @@ INSTALLED_APPS = [
     "core",
     "accounts",
     "blog",
-    "comments"
+    "comments",
+    "engagements",
 ]
 
 MIDDLEWARE = [

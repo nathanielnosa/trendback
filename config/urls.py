@@ -8,4 +8,5 @@ urlpatterns = [
     path("api/<str:version>/auth/", include("accounts.urls")),
     path("api/<str:version>/blog/", include("blog.urls")),
     path("api/<str:version>/comments/", include("comments.urls")),
+    path("api/<str:version>/engagements/", include("engagements.urls")),
 ]
