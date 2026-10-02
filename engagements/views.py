@@ -7,8 +7,8 @@ from rest_framework.views import APIView
 
 from blog.models import Post
 
-from .models import Reaction
-from .serializers import ReactionSerializer
+from .models import Reaction,Bookmark
+from .serializers import ReactionSerializer,BookmarkSerializer
 
 # ==========================
 # POST REACTION VIEW
@@ -18,11 +18,7 @@ class PostReactionView(APIView):
 
     def get_post(self, post_id):
         try:
-            return Post.objects.get(
-                id=post_id,
-                status=Post.Status.PUBLISHED,
-                visibility=Post.Visibility.PUBLIC,
-            )
+            return Post.objects.get(id=post_id,status=Post.Status.PUBLISHED,visibility=Post.Visibility.PUBLIC)
         except Post.DoesNotExist:
             return None
     # ::get reaction
@@ -35,15 +31,8 @@ class PostReactionView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        reactions = Reaction.objects.filter(
-            post=post
-        )
-
-        counts = reactions.values(
-            "reaction_type"
-        ).annotate(
-            total=Count("id")
-        )
+        reactions = Reaction.objects.filter(post=post)
+        counts = reactions.values("reaction_type").annotate(total=Count("id"))
 
         reaction_counts = {
             reaction_type: 0
@@ -191,6 +180,131 @@ class PostReactionView(APIView):
                 "message": (
                     "Reaction removed successfully."
                 )
+            },
+            status=status.HTTP_200_OK
+        )
+
+# ==========================
+# POST BOOKMARK VIEW
+# ==========================
+class PostBookmarkView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get_post(self, post_id):
+        try:
+            return Post.objects.get(id=post_id,status=Post.Status.PUBLISHED,visibility=Post.Visibility.PUBLIC)
+        except Post.DoesNotExist:
+            return None
+    # :::get bookmark
+    def get(self, request, post_id, *args,**kwargs):
+        post = self.get_post(post_id)
+
+        if not post:
+            return Response(
+                {"message": "Published post not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        bookmark = Bookmark.objects.filter(user=request.user,post=post).first()
+
+        return Response(
+            {
+                "post": post.id,
+                "bookmarked": bookmark is not None,
+                "bookmark": (
+                    BookmarkSerializer(
+                        bookmark,
+                        context={"request": request}
+                    ).data
+                    if bookmark
+                    else None
+                ),
+            },
+            status=status.HTTP_200_OK
+        )
+    # ::: post bookmark
+    def post(self, request, post_id,*args, **kwargs):
+        post = self.get_post(post_id)
+
+        if not post:
+            return Response(
+                {"message": "Published post not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        bookmark = Bookmark.objects.filter(user=request.user,post=post).first()
+
+        if bookmark:
+            return Response(
+                {
+                    "message": "Post is already bookmarked.",
+                    "bookmark": BookmarkSerializer(
+                        bookmark,
+                        context={"request": request}
+                    ).data,
+                },
+                status=status.HTTP_200_OK
+            )
+
+        bookmark = Bookmark.objects.create(
+            user=request.user,
+            post=post
+        )
+
+        return Response(
+            {
+                "message": "Post bookmarked successfully.",
+                "bookmark": BookmarkSerializer(
+                    bookmark,
+                    context={"request": request}
+                ).data,
+            },
+            status=status.HTTP_201_CREATED
+        )
+    # ::: delete 
+    def delete(self, request, post_id,*args,**kwargs):
+        post = self.get_post(post_id)
+
+        if not post:
+            return Response(
+                {"message": "Published post not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        bookmark = Bookmark.objects.filter(user=request.user,post=post).first()
+
+        if not bookmark:
+            return Response(
+                {
+                    "message": (
+                        "You have not bookmarked this post."
+                    )
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        bookmark.delete()
+
+        return Response(
+            {
+                "message": "Bookmark removed successfully."
+            },
+            status=status.HTTP_200_OK
+        )
+
+# ==========================
+# BOOKMARK LIST VIEW
+# ==========================
+class BookmarkListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request,*args,**kwargs):
+        bookmarks = (Bookmark.objects.filter(user=request.user).select_related("post"))
+        serializer = BookmarkSerializer(bookmarks,many=True,context={"request": request})
+
+        return Response(
+            {
+                "count": bookmarks.count(),
+                "bookmarks": serializer.data,
             },
             status=status.HTTP_200_OK
         )
