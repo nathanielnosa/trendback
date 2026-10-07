@@ -97,3 +97,33 @@ class Share(models.Model):
 
     def __str__(self):
         return f"{self.user} - {self.post.title} - {self.platform}"
+
+# ::: FOLLOWERS
+class Follow(models.Model):
+
+    id = models.UUIDField(primary_key=True,default=uuid.uuid4,editable=False)
+    follower = models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.CASCADE,related_name="following")
+    following = models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.CASCADE,related_name="followers")
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ["-created_at"]
+
+        constraints = [
+            models.UniqueConstraint(
+                fields=["follower", "following"],
+                name="unique_follower_following"
+            )
+        ]
+
+        indexes = [
+            models.Index(fields=["follower"]),
+            models.Index(fields=["following"]),
+            models.Index(fields=["created_at"]),
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.follower} follows "
+            f"{self.following}"
+        )

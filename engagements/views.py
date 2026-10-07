@@ -7,8 +7,8 @@ from rest_framework.views import APIView
 
 from blog.models import Post
 
-from .models import Reaction,Bookmark,Share
-from .serializers import ReactionSerializer,BookmarkSerializer,ShareSerializer
+from .models import Reaction,Bookmark,Share,Follow
+from .serializers import ReactionSerializer,BookmarkSerializer,ShareSerializer,FollowSerializer
 
 # ==========================
 # POST REACTION VIEW
@@ -374,6 +374,163 @@ class PostShareView(APIView):
                 "post": post.id,
                 "total_shares": shares.count(),
                 "shares_by_platform": share_counts,
+            },
+            status=status.HTTP_200_OK
+        )
+
+# ==========================
+# USERS FOLLOW VIEW
+# ==========================
+class UserFollowView(APIView):
+    permission_classes = [IsAuthenticated]
+    def get_user(self, user_id):
+        try:
+            from accounts.models import User
+            return User.objects.get(id=user_id,is_active=True)
+        except User.DoesNotExist:
+            return None
+    # get followers
+    def get(self, request, user_id,*args,**kwargs):
+        user = self.get_user(user_id)
+
+        if not user:
+            return Response(
+                {"message": "User not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        follow = Follow.objects.filter(follower=request.user,following=user).first()
+        
+        followers_count = Follow.objects.filter(following=user).count()
+        following_count = Follow.objects.filter(follower=user).count()
+
+        return Response(
+            {
+                "user": user.id,
+                "is_following": follow is not None,
+                "followers_count": followers_count,
+                "following_count": following_count,
+            },
+            status=status.HTTP_200_OK
+        )
+    # crate followers
+    def post(self, request, user_id,*args,**kwargs):
+        user = self.get_user(user_id)
+        if not user:
+            return Response({"message": "User not found."},status=status.HTTP_404_NOT_FOUND)
+
+        if user == request.user:
+            return Response(
+                {
+                    "message": (
+                        "You cannot follow yourself."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if user.role not in [
+            "ADMIN",
+            "EDITOR",
+            "AUTHOR",
+        ]:
+            return Response(
+                {
+                    "message": (
+                        "You can only follow authors, "
+                        "editors, or administrators."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        follow = Follow.objects.filter(follower=request.user,following=user).first()
+
+        if follow:
+            return Response(
+                {
+                    "message": "You are already following this user.",
+                    "follow": FollowSerializer(
+                        follow,
+                        context={"request": request}
+                    ).data,
+                },
+                status=status.HTTP_200_OK
+            )
+
+        follow = Follow.objects.create(follower=request.user,following=user)
+        return Response(
+            {
+                "message": "User followed successfully.",
+                "follow": FollowSerializer(
+                    follow,
+                    context={"request": request}
+                ).data,
+            },
+            status=status.HTTP_201_CREATED
+        )
+    # delete followers
+    def delete(self, request, user_id,*args,**kwargs):
+        user = self.get_user(user_id)
+
+        if not user:
+            return Response(
+                {"message": "User not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        follow = Follow.objects.filter(follower=request.user,following=user).first()
+
+        if not follow:
+            return Response(
+                {
+                    "message": (
+                        "You are not following this user."
+                    )
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        follow.delete()
+
+        return Response(
+            {
+                "message": "User unfollowed successfully."
+            },
+            status=status.HTTP_200_OK
+        )
+
+# ==========================
+# FOLLOWING  VIEW
+# ==========================
+class FollowingListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request,*args,**kwargs):
+        follows = (Follow.objects.filter(follower=request.user).select_related("following"))
+        serializer = FollowSerializer(follows,many=True,context={"request": request})
+        return Response(
+            {
+                "count": follows.count(),
+                "following": serializer.data,
+            },
+            status=status.HTTP_200_OK
+        )
+
+# ==========================
+# FOLLOWERS  VIEW
+# ==========================
+class FollowersListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request,*args,**kwargs):
+        follows = (Follow.objects.filter(following=request.user).select_related("follower"))
+        serializer = FollowSerializer(follows,many=True,context={"request": request})
+
+        return Response(
+            {
+                "count": follows.count(),
+                "followers": serializer.data,
             },
             status=status.HTTP_200_OK
         )

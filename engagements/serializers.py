@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Reaction,Bookmark,Share
+from .models import Reaction, Bookmark, Share, Follow
 from blog.models import Post
 
 # ::: REACTION
@@ -137,6 +137,56 @@ class ShareSerializer(serializers.ModelSerializer):
                 {
                     "post": (
                         "You can only share public posts."
+                    )
+                }
+            )
+
+        return attrs
+
+# ::: FOLLOWERS
+class FollowSerializer(serializers.ModelSerializer):
+
+    follower_name = serializers.CharField(source="follower.get_full_name",read_only=True)
+    following_name = serializers.CharField(source="following.get_full_name", read_only=True)
+
+    class Meta:
+        model = Follow
+
+        fields = ("id","follower","follower_name","following","following_name","created_at")
+        read_only_fields = ("id","follower","follower_name","following_name","created_at")
+
+    def validate(self, attrs):
+        request = self.context.get("request")
+        following = attrs.get("following")
+
+        if not request or not request.user.is_authenticated:
+            raise serializers.ValidationError(
+                "Authentication is required to follow an author."
+            )
+        if following.role not in [
+            "ADMIN",
+            "EDITOR",
+            "AUTHOR",
+        ]:
+            raise serializers.ValidationError(
+                {
+                    "following": (
+                        "You can only follow authors, "
+                        "editors, or administrators."
+                    )
+                }
+            )
+
+        if not following:
+            raise serializers.ValidationError(
+                {"following": "User to follow is required."}
+            )
+
+        if following == request.user:
+            raise serializers.ValidationError(
+                {
+                    "following": (
+                        "You cannot follow yourself."
                     )
                 }
             )
