@@ -7,8 +7,8 @@ from rest_framework.views import APIView
 
 from blog.models import Post
 
-from .models import Reaction,Bookmark
-from .serializers import ReactionSerializer,BookmarkSerializer
+from .models import Reaction,Bookmark,Share
+from .serializers import ReactionSerializer,BookmarkSerializer,ShareSerializer
 
 # ==========================
 # POST REACTION VIEW
@@ -305,6 +305,75 @@ class BookmarkListView(APIView):
             {
                 "count": bookmarks.count(),
                 "bookmarks": serializer.data,
+            },
+            status=status.HTTP_200_OK
+        )
+
+# ==========================
+# POST SHARE VIEW
+# ==========================
+class PostShareView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get_post(self, post_id):
+        try:
+            return Post.objects.get(id=post_id,status=Post.Status.PUBLISHED,visibility=Post.Visibility.PUBLIC)
+        except Post.DoesNotExist:
+            return None
+
+    def post(self, request, post_id,*args,**kwargs):
+        post = self.get_post(post_id)
+        if not post:
+            return Response(
+                {"message": "Published post not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        serializer = ShareSerializer(
+            data={
+                "post": post.id,
+                "platform": request.data.get("platform"),
+            },
+            context={"request": request},
+        )
+
+        if not serializer.is_valid():
+            return Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST)
+
+        share = serializer.save(user=request.user)
+
+        return Response(
+            {
+                "message": "Post shared successfully.",
+                "share": ShareSerializer(
+                    share,
+                    context={"request": request}
+                ).data,
+            },
+            status=status.HTTP_201_CREATED
+        )
+
+    def get(self, request, post_id,*args,**kwargs):
+        post = self.get_post(post_id)
+
+        if not post:
+            return Response({"message": "Published post not found."},status=status.HTTP_404_NOT_FOUND)
+
+        shares = Share.objects.filter(post=post)
+        platform_counts = shares.values("platform").annotate(total=Count("id"))
+        share_counts = {
+            platform: 0
+            for platform, _ in Share.Platform.choices
+        }
+
+        for item in platform_counts:
+            share_counts[item["platform"]] = item["total"]
+
+        return Response(
+            {
+                "post": post.id,
+                "total_shares": shares.count(),
+                "shares_by_platform": share_counts,
             },
             status=status.HTTP_200_OK
         )

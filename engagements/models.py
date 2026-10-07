@@ -64,3 +64,36 @@ class Bookmark(models.Model):
 
     def __str__(self):
         return f"{self.user} - {self.post.title}"
+    
+# ::: SHARE
+class Share(models.Model):
+
+    class Platform(models.TextChoices):
+        WHATSAPP = "whatsapp", "WhatsApp"
+        INSTAGRAM = "instagram", "instagram"
+        FACEBOOK = "facebook", "Facebook"
+        TWITTER = "twitter", "Twitter"
+        LINKEDIN = "linkedin", "LinkedIn"
+        TELEGRAM = "telegram", "Telegram"
+        COPY_LINK = "copy_link", "Copy Link"
+        OTHER = "other", "Other"
+
+    id = models.UUIDField(primary_key=True,default=uuid.uuid4,editable=False)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.CASCADE,related_name="shares")
+    post = models.ForeignKey(Post,on_delete=models.CASCADE,related_name="shares")
+    platform = models.CharField(max_length=20,choices=Platform.choices)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+        indexes = [
+            models.Index(fields=["user"]),
+            models.Index(fields=["post"]),
+            models.Index(fields=["platform"]),
+            models.Index(fields=["created_at"]),
+            models.Index(fields=["post", "platform"]),
+        ]
+
+    def __str__(self):
+        return f"{self.user} - {self.post.title} - {self.platform}"
