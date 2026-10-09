@@ -10,6 +10,9 @@ from .serializers import (CommentSerializer, CommentModerationSerializer)
 
 from accounts.permissions import CanManageComments
 
+from analytics.models import AnalyticsEvent
+from analytics.services import record_event
+
 # =========================
 # COMMENT LIST CREATE VIEW
 # =========================
@@ -59,14 +62,25 @@ class CommentListCreateView(APIView):
         )
 
         if serializer.is_valid():
-            serializer.save(
+            comment =serializer.save(
                 author=request.user
             )
-
+            record_event(
+            event_type=AnalyticsEvent.EventType.COMMENT,
+            actor=request.user,
+            post=comment.post,
+            source="comment_api",
+            metadata={
+                "comment_id": str(comment.id),
+                "is_reply": comment.parent_id is not None,
+            },
+        )
+            
             return Response(
                 serializer.data,
                 status=status.HTTP_201_CREATED
             )
+        
 
         return Response(
             serializer.errors,

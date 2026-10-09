@@ -10,6 +10,9 @@ from blog.models import Post
 from .models import Reaction,Bookmark,Share,Follow
 from .serializers import ReactionSerializer,BookmarkSerializer,ShareSerializer,FollowSerializer
 
+from analytics.models import AnalyticsEvent
+from analytics.services import record_event
+
 # ==========================
 # POST REACTION VIEW
 # ==========================
@@ -137,6 +140,15 @@ class PostReactionView(APIView):
             post=post,
             reaction_type=reaction_type
         )
+        record_event(
+            event_type=AnalyticsEvent.EventType.REACTION,
+            actor=request.user,
+            post=post,
+            source="reaction_api",
+            metadata={
+                "reaction_type": reaction.reaction_type,
+            },
+        )
 
         return Response(
             {
@@ -249,6 +261,12 @@ class PostBookmarkView(APIView):
             user=request.user,
             post=post
         )
+        record_event(
+            event_type=AnalyticsEvent.EventType.BOOKMARK,
+            actor=request.user,
+            post=bookmark.post,
+            source="bookmark_api",
+        )
 
         return Response(
             {
@@ -341,6 +359,15 @@ class PostShareView(APIView):
             return Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST)
 
         share = serializer.save(user=request.user)
+        record_event(
+            event_type=AnalyticsEvent.EventType.SHARE,
+            actor=request.user,
+            post=share.post,
+            source="share_api",
+            metadata={
+                "platform": share.platform,
+            },
+        )
 
         return Response(
             {
@@ -459,6 +486,14 @@ class UserFollowView(APIView):
             )
 
         follow = Follow.objects.create(follower=request.user,following=user)
+        record_event(
+            event_type=AnalyticsEvent.EventType.FOLLOW,
+            actor=request.user,
+            source="follow_api",
+            metadata={
+                "followed_user_id": str(follow.following_id),
+            },
+        )
         return Response(
             {
                 "message": "User followed successfully.",
