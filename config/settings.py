@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     "blog",
     "comments",
     "engagements",
+    "notifications",
 ]
 
 MIDDLEWARE = [

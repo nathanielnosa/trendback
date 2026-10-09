@@ -26,7 +26,7 @@ from .serializers import (
     PostPublishSerializer,
     PostSubmitReviewSerializer
 )
-from .pagination import PostPagination
+from paginations.pagination import PostPagination
 
 
 # =============================
