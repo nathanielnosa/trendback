@@ -46,7 +46,8 @@ INSTALLED_APPS = [
     "comments",
     "engagements",
     "notifications",
-    "analytics",
+    "analytics.apps.AnalyticsConfig",
+    "django_celery_beat",
 ]
 
 MIDDLEWARE = [
@@ -153,6 +154,17 @@ MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
 
+# Celery Configuration
+CELERY_BROKER_URL = "redis://127.0.0.1:6379/0"
+CELERY_RESULT_BACKEND = "redis://127.0.0.1:6379/1"
+
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_ENABLE_UTC = True
+
+
 # Email
 
 # EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
@@ -207,6 +219,13 @@ SIMPLE_JWT = {
 
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
+
+# ============================================================
+# CELERY BEAT SCHEDULER CONFIGURATION
+# ============================================================
+CELERY_BEAT_SCHEDULER = (
+    "django_celery_beat.schedulers:DatabaseScheduler"
+)
 
 # ============================================================
 # LOGGING CONFIGURATION
