@@ -154,41 +154,51 @@ MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
 
-# Celery Configuration
-CELERY_BROKER_URL = "redis://127.0.0.1:6379/0"
-CELERY_RESULT_BACKEND = "redis://127.0.0.1:6379/1"
 
-CELERY_ACCEPT_CONTENT = ["json"]
-CELERY_TASK_SERIALIZER = "json"
-CELERY_RESULT_SERIALIZER = "json"
-CELERY_TIMEZONE = TIME_ZONE
-CELERY_ENABLE_UTC = True
+# =============================
+# EMAIL CONFIGURATION
+# =============================
+BACKBLOG_REPORT_RECIPIENT = os.getenv(
+    "BACKBLOG_REPORT_RECIPIENT",
+    "",
+).strip()
+# Standard Django SMTP Configuration
+
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = "smtp.gmail.com"
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_USE_SSL = False
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+
+EMAIL_TIMEOUT = 10
 
 
-# Email
-
-# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-# EMAIL_HOST = 'smtp.example.com'
-# EMAIL_PORT = 587  
-# EMAIL_USE_TLS = True 
-# EMAIL_HOST_USER = str(os.getenv("EMAIL_HOST_USER"))
-# EMAIL_HOST_PASSWORD = str(os.getenv("EMAIL_HOST_PASSWORD"))
-# EMAIL_USE_SSL = False  # Set to True if using SSL
-# DEFAULT_FROM_EMAIL = str(os.getenv("DEFAULT_FROM_EMAIL"))
-
-DEFAULT_FROM_EMAIL = "noreply@backblog.local"
-
-# https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
+DEFAULT_FROM_EMAIL = os.getenv(
+    "DEFAULT_FROM_EMAIL",
+    "noreply@backblog.local",
+)
 
 MAILERS = {
-    'default': {
-        'BACKEND': 'django.core.mail.backends.console.EmailBackend',
+    "default": {
+        "BACKEND": "django.core.mail.backends.smtp.EmailBackend",
+        "OPTIONS": {
+            "host": "smtp.gmail.com",
+            "port": 587,
+            "use_tls": True,
+            "username": os.getenv("EMAIL_HOST_USER"),
+            "password": os.getenv("EMAIL_HOST_PASSWORD"),
+            "timeout": 10,
+        },
     },
 }
 
 AUTH_USER_MODEL = "accounts.User"
 
-# OUR FRAMEWORK
+# ======================
+# FRAMEWORKS
+# ======================
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
@@ -210,6 +220,9 @@ REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "core.exceptions.custom_exception_handler",
 }
 
+# ========
+# JWT
+# ========
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
@@ -220,9 +233,31 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
+# ============================================
+# REDIS CACHING CONFIGURATION
+# ============================================
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": "redis://127.0.0.1:6379/2",
+        "TIMEOUT": 300,
+        "KEY_PREFIX": "backblog",
+    }
+}
+
 # ============================================================
-# CELERY BEAT SCHEDULER CONFIGURATION
+# CELERY & BEAT SCHEDULER CONFIGURATION
 # ============================================================
+
+CELERY_BROKER_URL = "redis://127.0.0.1:6379/0"
+CELERY_RESULT_BACKEND = "redis://127.0.0.1:6379/1"
+
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_ENABLE_UTC = True
+# BEAT
 CELERY_BEAT_SCHEDULER = (
     "django_celery_beat.schedulers:DatabaseScheduler"
 )
