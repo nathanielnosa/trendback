@@ -9,14 +9,14 @@ from rest_framework.permissions import IsAuthenticated,AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from accounts.permissions import CanViewAnalytics
+from accounts.permissions import CanViewAnalytics, IsAdmin
 from paginations.pagination import AnalyticsEventPagination
 from blog.models import Post
 
 from .models import AnalyticsEvent
 from .serializers import AnalyticsEventSerializer
 
-
+from celery.result import AsyncResult
 # =========================
 # ANALYTICS LIST VIEW
 # =========================
@@ -553,3 +553,49 @@ class TrendingPostsView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+# =========================
+# CELERY TASK STATUS VIEW
+# =========================
+
+class CeleryTaskStatusView(APIView):
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    def get(self, request, *args, **kwargs):
+        task_id = request.query_params.get("task_id", "").strip()
+
+        if not task_id:
+            return Response(
+                {"error": "task_id query parameter is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        from config.celery import app
+
+        task = AsyncResult(task_id, app=app)
+        task_status = task.status
+
+        response_data = {"task_id": task_id,"status": task_status,"ready": task.ready(),}
+
+        # Only expose a simple success result.
+        # Do not return exception tracebacks or arbitrary
+        # task result objects through this endpoint.
+        if task_status == "SUCCESS":
+            result = task.result
+
+            if isinstance(result, dict):
+                response_data["result"] = {
+                    key: value
+                    for key, value in result.items()
+                    if key in {"status","message","report_date","recipient","retry_attempts","executed_at",}
+                    and isinstance(
+                        value,
+                        (str, int, float, bool, type(None)),
+                    )
+                }
+            else:
+                response_data["result"] = {
+                    "available": True,
+                }
+
+        return Response(response_data,status=status.HTTP_200_OK,)

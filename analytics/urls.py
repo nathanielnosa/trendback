@@ -7,7 +7,8 @@ from .views import (
     TopViewedPostsView,
     TopEngagedPostsView,
     TrafficTrendsView,
-    TrendingPostsView
+    TrendingPostsView,
+    CeleryTaskStatusView
 )
 
 
@@ -18,4 +19,5 @@ urlpatterns = [
     path("posts/top-engaged/",TopEngagedPostsView.as_view(),name="analytics-top-engaged-posts"),
     path("traffic-trends/",TrafficTrendsView.as_view(),name="analytics-traffic-trends"),
     path("trending/",TrendingPostsView.as_view(),name="analytics-trending-posts",),
+    path("tasks/",CeleryTaskStatusView.as_view(),name="analytics-task-status",),
 ]
