@@ -258,9 +258,7 @@ CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_ENABLE_UTC = True
 # BEAT
-CELERY_BEAT_SCHEDULER = (
-    "django_celery_beat.schedulers:DatabaseScheduler"
-)
+CELERY_BEAT_SCHEDULER = "config.celery_scheduler:BackBlogDatabaseScheduler"
 
 # ============================================================
 # LOGGING CONFIGURATION
