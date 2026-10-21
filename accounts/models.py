@@ -4,15 +4,13 @@ from django.utils import timezone
 
 import uuid
 
-
-
 # user management
 class UserManager(BaseUserManager):
     def create_user(self,email,username,first_name,last_name,password=None,**extra_fields):
         if not email:
             raise ValueError("Email address is required")
 
-        email = self.normalize_email(email)
+        email = self.normalize_email(email).lower()
 
         user = self.model(
             email=email,

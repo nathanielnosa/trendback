@@ -358,3 +358,16 @@ LOGGING = {
         },
     },
 }
+
+# ===============
+# CORS
+# ===============
+CORS_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:5173").split(",")
+    if origin.strip()
+]
+# ===============
+# FRONTEND URL
+# ===============
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")

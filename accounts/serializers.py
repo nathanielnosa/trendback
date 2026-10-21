@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from django.contrib.auth.password_validation import validate_password as run_password_validators
 
 from .models import User
 
@@ -21,6 +22,10 @@ class RegisterSerializer(serializers.ModelSerializer):
             "password_confirmation",
         ]
 
+    def validate_password(self, value):
+        run_password_validators(value)
+        return value
+    
     def validate_email(self, value):
         value = value.lower().strip()
         if User.objects.filter(email=value).exists():
@@ -54,6 +59,8 @@ class LoginSerializer(serializers.Serializer):
     password = serializers.CharField(
         write_only=True
     )
+    def validate_email(self, value):
+        return value.lower().strip()
 
 # :::: CHANGE PASSWORD
 class ChangePasswordSerializer(serializers.Serializer):
@@ -63,6 +70,9 @@ class ChangePasswordSerializer(serializers.Serializer):
     new_password = serializers.CharField(write_only=True,min_length=8)
     new_password_confirmation = serializers.CharField(write_only=True)
 
+    def validate_new_password(self, value):
+        run_password_validators(value)
+        return value
     def validate(self, attrs):
 
         if attrs["new_password"] != attrs["new_password_confirmation"]:
@@ -87,6 +97,9 @@ class ResetPasswordSerializer(serializers.Serializer):
         write_only=True
     )
 
+    def validate_new_password(self, value):
+        run_password_validators(value)
+        return value
     def validate(self, attrs):
 
         if (
@@ -99,3 +112,23 @@ class ResetPasswordSerializer(serializers.Serializer):
             })
 
         return attrs
+
+# :::: PROFILE UPDATE
+class ProfileUpdateSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = User
+        fields = [
+            "username",
+            "first_name",
+            "last_name",
+            "bio",
+            "avatar",
+        ]
+
+    def validate_username(self, value):
+        value = value.lower().strip()
+        user = self.instance
+        if User.objects.exclude(pk=user.pk).filter(username=value).exists():
+            raise serializers.ValidationError("This username is already taken.")
+        return value

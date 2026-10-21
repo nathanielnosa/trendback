@@ -10,6 +10,8 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 
+from django.conf import settings
+
 from .serializers import *
 from .models import AuthToken,User
 from .services import (create_auth_token,
@@ -29,6 +31,7 @@ logger = logging.getLogger("backblog")
 # :::: REGISTRATION
 class RegisterView(APIView):
     permission_classes = [AllowAny]
+    
     def post(self, request,*args, **kwargs):
 
         serializer = RegisterSerializer(data=request.data)
@@ -41,9 +44,10 @@ class RegisterView(APIView):
                 )
             
             verification_url = (
-                            f"http://localhost:5173/verify-email/?token={raw_token}"
+                            f"{settings.FRONTEND_URL}/verify-email/?token={raw_token}"
                             )
             send_verification_email(user,verification_url)
+            logger.info("User registered successfully: %s",user.email)
             return Response(
                 {
                     "message": "Account created successfully.",
@@ -57,7 +61,7 @@ class RegisterView(APIView):
                 },
                 status=status.HTTP_201_CREATED
             )
-        logger.info("User registered successfully: %s",user.email)
+        logger.warning("Registration validation failed: %s",serializer.errors,)
         return Response(
             serializer.errors,
             status=status.HTTP_400_BAD_REQUEST
@@ -164,7 +168,7 @@ class ResendVerificationView(APIView):
         user = User.objects.filter(email=email.lower().strip()).first()
 
         # Don't reveal whether an account exists.
-        if not user:
+        if not user or user.is_verified:
 
             return Response(
                 {
@@ -191,7 +195,7 @@ class ResendVerificationView(APIView):
         )
 
         verification_url = (
-            f"http://localhost:5173/verify-email/?token={raw_token}"
+            f"{settings.FRONTEND_URL}/verify-email/?token={raw_token}"
         )
 
         send_verification_email(
@@ -223,13 +227,13 @@ class LoginView(APIView):
         user = authenticate(request=request,username=email,password=password)
         
         if user is None:
+            logger.warning("Failed login attempt: %s",email)
             return Response(
                 {
                     "message": "Invalid email or password."
                 },
                 status=status.HTTP_401_UNAUTHORIZED
             )
-        logger.warning("Failed login attempt: %s",email)
 
         if not user.is_active:
             return Response(
@@ -303,7 +307,7 @@ class ForgotPasswordView(APIView):
             )
 
             reset_url = (
-                f"http://localhost:5173/reset-password/"
+               f"{settings.FRONTEND_URL}/reset-password/"
                 f"?token={raw_token}"
             )
 
@@ -327,11 +331,9 @@ class ResetPasswordView(APIView):
 
     permission_classes = [AllowAny]
 
-    def post(self, request):
+    def post(self, request,*args,**kwargs):
 
-        serializer = ResetPasswordSerializer(
-            data=request.data
-        )
+        serializer = ResetPasswordSerializer(data=request.data)
 
         if not serializer.is_valid():
 
@@ -526,6 +528,40 @@ class MeView(APIView):
                     if user.avatar
                     else None
                 ),
+                "bio": user.bio,
+                "date_joined": user.date_joined,
+            },
+            status=status.HTTP_200_OK
+        )
+    # update
+    def patch(self, request, *args, **kwargs):
+
+        serializer = ProfileUpdateSerializer(
+            request.user,
+            data=request.data,
+            partial=True,
+        )
+
+        if not serializer.is_valid():
+            return Response(
+                serializer.errors,
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        serializer.save()
+        logger.info("Profile updated: %s", request.user.email)
+
+        user = request.user
+        return Response(
+            {
+                "id": user.id,
+                "email": user.email,
+                "username": user.username,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "role": user.role,
+                "is_verified": user.is_verified,
+                "avatar": request.build_absolute_uri(user.avatar.url) if user.avatar else None,
                 "bio": user.bio,
                 "date_joined": user.date_joined,
             },
