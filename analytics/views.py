@@ -17,6 +17,16 @@ from .models import AnalyticsEvent
 from .serializers import AnalyticsEventSerializer
 
 from celery.result import AsyncResult
+
+
+def safe_parse_date(value):
+    """Return a date, or None if the value is not a real YYYY-MM-DD date."""
+    try:
+        return parse_date(value)
+    except (TypeError, ValueError):
+        return None
+
+
 # =========================
 # ANALYTICS LIST VIEW
 # =========================
@@ -55,7 +65,7 @@ class AnalyticsEventListView(APIView):
 
         # Validate start date
         if start_date:
-            parsed_start = parse_date(start_date)
+            parsed_start = safe_parse_date(start_date)
 
             if parsed_start is None:
                 return Response(
@@ -70,7 +80,7 @@ class AnalyticsEventListView(APIView):
 
         # Validate end date
         if end_date:
-            parsed_end = parse_date(end_date)
+            parsed_end = safe_parse_date(end_date)
 
             if parsed_end is None:
                 return Response(
@@ -281,7 +291,7 @@ class TrafficTrendsView(APIView):
         end_date = today
 
         if start_date_value:
-            start_date = parse_date(start_date_value)
+            start_date = safe_parse_date(start_date_value)
             if start_date is None:
                 return Response(
                     {
@@ -294,7 +304,7 @@ class TrafficTrendsView(APIView):
                 )
 
         if end_date_value:
-            end_date = parse_date(end_date_value)
+            end_date = safe_parse_date(end_date_value)
             if end_date is None:
                 return Response(
                     {

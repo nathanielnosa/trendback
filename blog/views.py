@@ -31,6 +31,10 @@ from paginations.pagination import PostPagination
 from analytics.models import AnalyticsEvent
 from analytics.services import record_event
 
+import logging
+logger = logging.getLogger("backblog")
+
+
 # =============================
 # POST LIST / CREATE
 # =============================
@@ -137,16 +141,15 @@ class PostDetailView(APIView):
             return Response({"message": "Post not found."},status=status.HTTP_404_NOT_FOUND)
 
         serializer = PostSerializer(post, context={"request": request})
-        record_event(
-            event_type=AnalyticsEvent.EventType.POST_VIEW,
-            actor=(
-                request.user
-                if request.user.is_authenticated
-                else None
-            ),
-            post=post,
-            source="post_detail",
-        )
+        try:
+            record_event(
+                event_type=AnalyticsEvent.EventType.POST_VIEW,
+                actor=request.user if request.user.is_authenticated else None,
+                post=post,
+                source="post_detail",
+            )
+        except Exception:
+            logger.exception("Failed to record post view event.")
         return Response(serializer.data,status=status.HTTP_200_OK)
 
     # ::: update a post
@@ -626,6 +629,12 @@ class PostPublishView(APIView):
                     "scheduled_at",
                     "updated_at",
                 ]
+            )
+            record_event(
+                event_type=AnalyticsEvent.EventType.POST_PUBLISHED,
+                actor=request.user,
+                post=post,
+                source="post_publish",
             )
 
             return Response(
