@@ -4,7 +4,6 @@ import uuid
 
 from blog.models import Post
 
-
 class Comment(models.Model):
     class Status(models.TextChoices):
         PENDING = "pending", "Pending"

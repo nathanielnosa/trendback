@@ -1,3 +1,6 @@
+import logging
+import uuid
+
 from django.utils import timezone
 
 from rest_framework import status
@@ -12,6 +15,8 @@ from accounts.permissions import CanManageComments
 
 from analytics.models import AnalyticsEvent
 from analytics.services import record_event
+
+logger = logging.getLogger("backblog")
 
 # =========================
 # COMMENT LIST CREATE VIEW
@@ -34,15 +39,21 @@ class CommentListCreateView(APIView):
         comments = (
             Comment.objects
             .filter(
-                status=Comment.Status.APPROVED
+                status=Comment.Status.APPROVED,
+                post__status="published",
+                post__visibility="public",
             )
             .select_related("author", "post", "parent")
         )
 
         if post_id:
-            comments = comments.filter(
-                post_id=post_id
-            )
+            try:
+                comments = comments.filter(post_id=uuid.UUID(post_id))
+            except ValueError:
+                return Response(
+                    {"message": "Invalid post id."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
         serializer = CommentSerializer(
             comments,
@@ -62,25 +73,14 @@ class CommentListCreateView(APIView):
         )
 
         if serializer.is_valid():
-            comment =serializer.save(
+            serializer.save(
                 author=request.user
             )
-            record_event(
-            event_type=AnalyticsEvent.EventType.COMMENT,
-            actor=request.user,
-            post=comment.post,
-            source="comment_api",
-            metadata={
-                "comment_id": str(comment.id),
-                "is_reply": comment.parent_id is not None,
-            },
-        )
-            
+
             return Response(
                 serializer.data,
                 status=status.HTTP_201_CREATED
             )
-        
 
         return Response(
             serializer.errors,
@@ -116,6 +116,12 @@ class CommentDetailView(APIView):
             return Response(
                 {"message": "You can only edit your own comments."},
                 status=status.HTTP_403_FORBIDDEN
+            )
+
+        if comment.status == Comment.Status.DELETED:
+            return Response(
+                {"message": "Comment not found."},
+                status=status.HTTP_404_NOT_FOUND
             )
 
         serializer = CommentSerializer(
@@ -192,6 +198,8 @@ class CommentModerationView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
+        self.check_object_permissions(request, comment)
+
         if comment.status != Comment.Status.PENDING:
             return Response(
                 {
@@ -221,6 +229,20 @@ class CommentModerationView(APIView):
                 update_fields=["status", "updated_at"]
             )
 
+            try:
+                record_event(
+                    event_type=AnalyticsEvent.EventType.COMMENT,
+                    actor=comment.author,
+                    post=comment.post,
+                    source="comment_moderation",
+                    metadata={
+                        "comment_id": str(comment.id),
+                        "is_reply": comment.parent_id is not None,
+                    },
+                )
+            except Exception:
+                logger.exception("Failed to record comment event.")
+
             return Response(
                 {
                     "message": "Comment approved successfully.",
@@ -249,6 +271,3 @@ class CommentModerationView(APIView):
                 },
                 status=status.HTTP_200_OK
             )
-# =========================
-# COMMENT DETAILS VIEW
-# =========================

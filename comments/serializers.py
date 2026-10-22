@@ -6,7 +6,7 @@ from blog.models import Post
 
 class CommentSerializer(serializers.ModelSerializer):
     author_name = serializers.CharField(source="author.get_full_name",read_only=True)
-    replies_count = serializers.IntegerField(source="replies.count",read_only=True)
+    replies_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Comment
@@ -37,6 +37,9 @@ class CommentSerializer(serializers.ModelSerializer):
             "replies_count",
         )
 
+    def get_replies_count(self, obj):
+        return obj.replies.filter(status=Comment.Status.APPROVED).count()
+
     def validate(self, attrs):
         request = self.context.get("request")
         post = attrs.get("post")
@@ -45,6 +48,12 @@ class CommentSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 "Authentication is required to comment."
             )
+
+        # When editing, only the content may change
+        if self.instance is not None:
+            attrs.pop("post", None)
+            attrs.pop("parent", None)
+            return attrs
 
         if not post:
             raise serializers.ValidationError(
