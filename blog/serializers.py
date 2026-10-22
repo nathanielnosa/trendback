@@ -92,6 +92,25 @@ class PostSerializer(serializers.ModelSerializer):
                 )
 
         return value
+    
+    # hide review data
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+
+        can_see_review = (
+            user is not None
+            and user.is_authenticated
+            and (user.role in ("ADMIN", "EDITOR") or instance.author_id == user.id)
+        )
+
+        if not can_see_review:
+            for field in ("review_notes", "reviewed_by", "reviewed_by_name", "reviewed_at"):
+                data.pop(field, None)
+
+        return data
     # validate for draft post
     def validate(self, attrs):
         request = self.context.get("request")
@@ -115,6 +134,10 @@ class PostSerializer(serializers.ModelSerializer):
                         )
                     })
 
+        if request and request.user.is_authenticated:
+            if request.user.role not in ("ADMIN", "EDITOR"):
+                attrs.pop("is_featured", None)
+                attrs.pop("is_trending", None)
         return attrs
 
 # Review Post Serializer

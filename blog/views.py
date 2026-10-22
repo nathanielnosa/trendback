@@ -47,10 +47,7 @@ class PostListCreateView(APIView):
     # :::get all post
     def get(self, request,*args,**kwargs):
         posts = (Post.objects
-                 .filter(
-                            status=Post.Status.PUBLISHED,
-                            visibility=Post.Visibility.PUBLIC,
-                        )
+                 .filter(status=Post.Status.PUBLISHED,visibility=Post.Visibility.PUBLIC,)
                         .select_related("author", "category")
                         .prefetch_related("tags")
                  )
@@ -76,29 +73,28 @@ class PostListCreateView(APIView):
             posts = posts.filter(tags__slug=tag)
 
         if author:
-            posts = posts.filter(author__id=author)
+            if author.isdigit():
+                posts = posts.filter(author__id=int(author))
+            else:
+                posts = posts.none()
 
         if featured:
-            posts = posts.filter(
-                is_featured=featured.lower() == "true"
-            )
+            posts = posts.filter(is_featured=featured.lower() == "true")
 
         if trending:
-            posts = posts.filter(
-                is_trending=trending.lower() == "true"
-            )
+            posts = posts.filter(is_trending=trending.lower() == "true")
 
         posts = posts.distinct()
         # pagination
         paginator = PostPagination()
         page = paginator.paginate_queryset(posts, request)
         
-        serializer = PostSerializer(page, many=True)
-        return Response(serializer.data,status=status.HTTP_200_OK)
+        serializer = PostSerializer(page, many=True, context={"request": request})
+        return paginator.get_paginated_response(serializer.data)
 
     # :::create post
     def post(self, request,*args,**kwargs):
-        serializer = PostSerializer(data=request.data)
+        serializer = PostSerializer(data=request.data, context={"request": request})
 
         if serializer.is_valid():
             serializer.save(author=request.user)
@@ -140,7 +136,7 @@ class PostDetailView(APIView):
         if(post.status != Post.Status.PUBLISHED or post.visibility != Post.Visibility.PUBLIC):
             return Response({"message": "Post not found."},status=status.HTTP_404_NOT_FOUND)
 
-        serializer = PostSerializer(post)
+        serializer = PostSerializer(post, context={"request": request})
         record_event(
             event_type=AnalyticsEvent.EventType.POST_VIEW,
             actor=(
@@ -161,7 +157,7 @@ class PostDetailView(APIView):
             return Response({"message": "Post not found."},status=status.HTTP_404_NOT_FOUND)
         # check permission not all can update
         self.check_object_permissions(request, post)
-        serializer = PostSerializer(post,data=request.data)
+        serializer = PostSerializer(post, data=request.data, context={"request": request})
 
         if serializer.is_valid():
             serializer.save()
@@ -177,7 +173,7 @@ class PostDetailView(APIView):
 
         self.check_object_permissions(request, post)
 
-        serializer = PostSerializer(post,data=request.data,partial=True)
+        serializer = PostSerializer(post, data=request.data, partial=True, context={"request": request})
 
         if serializer.is_valid():
             serializer.save()
@@ -524,9 +520,7 @@ class PostReviewView(APIView):
             return Response({"message": "Post not found."},status=status.HTTP_404_NOT_FOUND)
         if post.status != Post.Status.UNDER_REVIEW:
             return Response(
-                {
-                    {"message": "Only posts under review can be reviewed."},
-                },
+                {"message": "Only posts under review can be reviewed."},
                 status=status.HTTP_400_BAD_REQUEST
             )
         serializer = PostReviewSerializer(data=request.data)
@@ -544,13 +538,7 @@ class PostReviewView(APIView):
             post.review_notes = review_notes
 
             post.save(
-                update_fields=[
-                    "status",
-                    "reviewed_by",
-                    "reviewed_at",
-                    "review_notes",
-                    "updated_at",
-                ]
+                update_fields=["status","reviewed_by","reviewed_at","review_notes","updated_at",]
             )
 
             return Response(
@@ -568,13 +556,7 @@ class PostReviewView(APIView):
             post.review_notes = review_notes
 
             post.save(
-                update_fields=[
-                    "status",
-                    "reviewed_by",
-                    "reviewed_at",
-                    "review_notes",
-                    "updated_at",
-                ]
+                update_fields=["status","reviewed_by","reviewed_at","review_notes","updated_at",]
             )
 
             return Response(

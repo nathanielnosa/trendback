@@ -371,3 +371,13 @@ CORS_ALLOWED_ORIGINS = [
 # FRONTEND URL
 # ===============
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+
+# ===============
+# FASTER TESTS
+# ===============
+import sys
+
+if len(sys.argv) > 1 and sys.argv[1] == "test":
+    PASSWORD_HASHERS = [
+        "django.contrib.auth.hashers.MD5PasswordHasher",
+    ]
