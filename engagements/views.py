@@ -1,3 +1,6 @@
+import logging
+
+from django.db import IntegrityError, transaction
 from django.db.models import Count
 
 from rest_framework import status
@@ -5,6 +8,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from accounts.models import User
 from blog.models import Post
 
 from .models import Reaction,Bookmark,Share,Follow
@@ -12,6 +16,41 @@ from .serializers import ReactionSerializer,BookmarkSerializer,ShareSerializer,F
 
 from analytics.models import AnalyticsEvent
 from analytics.services import record_event
+
+logger = logging.getLogger("backblog")
+
+
+def record_once(*, event_type, actor, post=None, source="", metadata=None):
+    """
+    Record an analytics event, but only once per user, post and event type,
+    so toggling a button cannot inflate analytics or trending scores.
+    Never raises: an analytics failure must not break the user's action.
+    """
+    try:
+        existing = AnalyticsEvent.objects.filter(
+            event_type=event_type,
+            actor=actor,
+            post=post,
+        )
+
+        if metadata and "followed_user_id" in metadata:
+            existing = existing.filter(
+                metadata__followed_user_id=metadata["followed_user_id"]
+            )
+
+        if existing.exists():
+            return
+
+        record_event(
+            event_type=event_type,
+            actor=actor,
+            post=post,
+            source=source,
+            metadata=metadata,
+        )
+    except Exception:
+        logger.exception("Failed to record analytics event: %s", event_type)
+
 
 # ==========================
 # POST REACTION VIEW
@@ -83,7 +122,7 @@ class PostReactionView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        if reaction_type not in dict(
+        if not isinstance(reaction_type, str) or reaction_type not in dict(
             Reaction.ReactionType.choices
         ):
             return Response(
@@ -135,12 +174,34 @@ class PostReactionView(APIView):
                 status=status.HTTP_200_OK
             )
 
-        reaction = Reaction.objects.create(
-            user=request.user,
-            post=post,
-            reaction_type=reaction_type
-        )
-        record_event(
+        try:
+            with transaction.atomic():
+                reaction = Reaction.objects.create(
+                    user=request.user,
+                    post=post,
+                    reaction_type=reaction_type
+                )
+        except IntegrityError:
+            # A double click can race past the check above.
+            reaction = Reaction.objects.filter(
+                user=request.user,
+                post=post
+            ).first()
+            return Response(
+                {
+                    "message": (
+                        "You already have a reaction "
+                        "on this post."
+                    ),
+                    "reaction": ReactionSerializer(
+                        reaction,
+                        context={"request": request}
+                    ).data,
+                },
+                status=status.HTTP_200_OK
+            )
+
+        record_once(
             event_type=AnalyticsEvent.EventType.REACTION,
             actor=request.user,
             post=post,
@@ -257,11 +318,30 @@ class PostBookmarkView(APIView):
                 status=status.HTTP_200_OK
             )
 
-        bookmark = Bookmark.objects.create(
-            user=request.user,
-            post=post
-        )
-        record_event(
+        try:
+            with transaction.atomic():
+                bookmark = Bookmark.objects.create(
+                    user=request.user,
+                    post=post
+                )
+        except IntegrityError:
+            # A double click can race past the check above.
+            bookmark = Bookmark.objects.filter(
+                user=request.user,
+                post=post
+            ).first()
+            return Response(
+                {
+                    "message": "Post is already bookmarked.",
+                    "bookmark": BookmarkSerializer(
+                        bookmark,
+                        context={"request": request}
+                    ).data,
+                },
+                status=status.HTTP_200_OK
+            )
+
+        record_once(
             event_type=AnalyticsEvent.EventType.BOOKMARK,
             actor=request.user,
             post=bookmark.post,
@@ -316,7 +396,15 @@ class BookmarkListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request,*args,**kwargs):
-        bookmarks = (Bookmark.objects.filter(user=request.user).select_related("post"))
+        bookmarks = (
+            Bookmark.objects
+            .filter(
+                user=request.user,
+                post__status=Post.Status.PUBLISHED,
+                post__visibility=Post.Visibility.PUBLIC,
+            )
+            .select_related("post", "user")
+        )
         serializer = BookmarkSerializer(bookmarks,many=True,context={"request": request})
 
         return Response(
@@ -359,7 +447,7 @@ class PostShareView(APIView):
             return Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST)
 
         share = serializer.save(user=request.user)
-        record_event(
+        record_once(
             event_type=AnalyticsEvent.EventType.SHARE,
             actor=request.user,
             post=share.post,
@@ -412,9 +500,8 @@ class UserFollowView(APIView):
     permission_classes = [IsAuthenticated]
     def get_user(self, user_id):
         try:
-            from accounts.models import User
             return User.objects.get(id=user_id,is_active=True)
-        except User.DoesNotExist:
+        except (User.DoesNotExist, ValueError, TypeError, OverflowError):
             return None
     # get followers
     def get(self, request, user_id,*args,**kwargs):
@@ -485,8 +572,24 @@ class UserFollowView(APIView):
                 status=status.HTTP_200_OK
             )
 
-        follow = Follow.objects.create(follower=request.user,following=user)
-        record_event(
+        try:
+            with transaction.atomic():
+                follow = Follow.objects.create(follower=request.user,following=user)
+        except IntegrityError:
+            # A double click can race past the check above.
+            follow = Follow.objects.filter(follower=request.user,following=user).first()
+            return Response(
+                {
+                    "message": "You are already following this user.",
+                    "follow": FollowSerializer(
+                        follow,
+                        context={"request": request}
+                    ).data,
+                },
+                status=status.HTTP_200_OK
+            )
+
+        record_once(
             event_type=AnalyticsEvent.EventType.FOLLOW,
             actor=request.user,
             source="follow_api",
