@@ -5,9 +5,11 @@ from .views import (
     CommentDetailView,
     CommentModerationView
 )
+from .views_queue import PendingCommentsView
 
 urlpatterns = [
     path("",CommentListCreateView.as_view(),name="comment-list-create"),
     path("<uuid:comment_id>/",CommentDetailView.as_view(),name="comment-detail"),
     path("<uuid:comment_id>/moderate/",CommentModerationView.as_view(),name="comment-moderate"),
+    path("pending/",PendingCommentsView.as_view(),name="comment-pending"),
 ]

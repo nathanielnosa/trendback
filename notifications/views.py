@@ -1,4 +1,5 @@
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
@@ -41,6 +42,8 @@ class NotificationListView(APIView):
         return Response(
             {
                 "count": notifications.count(),
+                "next": paginator.get_next_link(),
+                "previous": paginator.get_previous_link(),
                 "unread_count": unread_count,
                 "notifications": serializer.data,
             },
@@ -68,8 +71,6 @@ class NotificationMarkReadView(APIView):
         notification = get_object_or_404(Notification,id=notification_id,recipient=request.user)
 
         if not notification.is_read:
-            from django.utils import timezone
-
             notification.is_read = True
             notification.read_at = timezone.now()
             notification.save(update_fields=["is_read", "read_at"])
@@ -91,8 +92,6 @@ class NotificationMarkAllReadView(APIView):
     permission_classes = [IsAuthenticated]
 
     def patch(self, request,*args,**kwargs):
-        from django.utils import timezone
-
         updated_count = Notification.objects.filter(recipient=request.user,is_read=False,).update(is_read=True,read_at=timezone.now())
         return Response(
             {

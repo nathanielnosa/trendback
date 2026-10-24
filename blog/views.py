@@ -30,6 +30,7 @@ from paginations.pagination import PostPagination
 
 from analytics.models import AnalyticsEvent
 from analytics.services import record_event
+from notifications.services import notify_post_published
 
 import logging
 logger = logging.getLogger("backblog")
@@ -636,6 +637,7 @@ class PostPublishView(APIView):
                 post=post,
                 source="post_publish",
             )
+            notify_post_published(post, request.user)
 
             return Response(
                 {

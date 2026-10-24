@@ -11,13 +11,18 @@ from .views import (
     PostPublishView,
     PostSubmitReviewView
 )
-
+from .views_dashboard import MyPostsView, ReviewQueueView
 
 urlpatterns = [
 
     # POSTS
     path("posts/",PostListCreateView.as_view(),name="post-list-create"),
     path("posts/<uuid:post_id>/",PostDetailView.as_view(),name="post-detail"),
+
+    # DASHBOARD
+    path("my-posts/",MyPostsView.as_view(),name="my-posts"),
+    path("review-queue/",ReviewQueueView.as_view(),name="review-queue"),
+ 
 
     # CATEGORIES
     path("categories/",CategoryListCreateView.as_view(),name="category-list-create"),

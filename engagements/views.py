@@ -16,6 +16,7 @@ from .serializers import ReactionSerializer,BookmarkSerializer,ShareSerializer,F
 
 from analytics.models import AnalyticsEvent
 from analytics.services import record_event
+from notifications.services import notify_reaction, notify_bookmark, notify_follow
 
 logger = logging.getLogger("backblog")
 
@@ -210,6 +211,7 @@ class PostReactionView(APIView):
                 "reaction_type": reaction.reaction_type,
             },
         )
+        notify_reaction(reaction)
 
         return Response(
             {
@@ -347,6 +349,7 @@ class PostBookmarkView(APIView):
             post=bookmark.post,
             source="bookmark_api",
         )
+        notify_bookmark(bookmark)
 
         return Response(
             {
@@ -597,6 +600,8 @@ class UserFollowView(APIView):
                 "followed_user_id": str(follow.following_id),
             },
         )
+        notify_follow(follow)
+
         return Response(
             {
                 "message": "User followed successfully.",

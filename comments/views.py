@@ -15,6 +15,7 @@ from accounts.permissions import CanManageComments
 
 from analytics.models import AnalyticsEvent
 from analytics.services import record_event
+from notifications.services import notify_comment_approved
 
 logger = logging.getLogger("backblog")
 
@@ -184,7 +185,9 @@ class CommentModerationView(APIView):
         try:
             return Comment.objects.select_related(
                 "author",
-                "post"
+                "post",
+                "parent",
+                "parent__author",
             ).get(id=comment_id)
         except Comment.DoesNotExist:
             return None
@@ -242,6 +245,8 @@ class CommentModerationView(APIView):
                 )
             except Exception:
                 logger.exception("Failed to record comment event.")
+
+            notify_comment_approved(comment)
 
             return Response(
                 {
