@@ -375,6 +375,13 @@ CORS_ALLOWED_ORIGINS = [
     for origin in os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:5173").split(",")
     if origin.strip()
 ]
+
+# ===============
+# SITE NAME
+# ===============
+SITE_NAME = "Trending Archive"
+FRONTEND_POST_PATH = "/posts/{slug}"
+
 # ===============
 # FRONTEND URL
 # ===============

@@ -2,7 +2,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path, include
-
+from blog.views_seo import rss_feed, sitemap_xml
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 urlpatterns = [
@@ -20,7 +20,12 @@ urlpatterns = [
     path("api/<str:version>/engagements/", include("engagements.urls")),
     path("api/<str:version>/notifications/", include("notifications.urls")),
     path("api/<str:version>/analytics/", include("analytics.urls")),
-       path("api/<str:version>/media/", include("media_library.urls")),
+    path("api/<str:version>/media/", include("media_library.urls")),
+
+    # SEO
+    path("sitemap.xml", sitemap_xml, name="sitemap"),
+    path("rss.xml", rss_feed, name="rss"),
+    path("api/<str:version>/seo/", include("blog.urls_seo")),
 ]
 
 # Unknown /api/ paths get a JSON 404 instead of an HTML page
