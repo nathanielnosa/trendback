@@ -524,7 +524,7 @@ class MeView(APIView):
                 "role": user.role,
                 "is_verified": user.is_verified,
                 "avatar": (
-                    user.avatar.url
+                    request.build_absolute_uri(user.avatar.url)
                     if user.avatar
                     else None
                 ),

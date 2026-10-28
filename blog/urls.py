@@ -22,7 +22,6 @@ urlpatterns = [
     # DASHBOARD
     path("my-posts/",MyPostsView.as_view(),name="my-posts"),
     path("review-queue/",ReviewQueueView.as_view(),name="review-queue"),
- 
 
     # CATEGORIES
     path("categories/",CategoryListCreateView.as_view(),name="category-list-create"),

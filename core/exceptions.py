@@ -8,8 +8,8 @@ from rest_framework import status
 
 
 # Create a logger for unexpected application errors.
-logger = logging.getLogger("Trending Archive")
-
+# logger = logging.getLogger("Trending Archive")
+logger = logging.getLogger("backblog.exceptions")
 
 def custom_exception_handler(exc, context):
     """

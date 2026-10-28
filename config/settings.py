@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     # Third-party
     "rest_framework",
     "corsheaders",
+    "drf_spectacular",
     "rest_framework_simplejwt.token_blacklist",
 
     # custom app
@@ -200,6 +201,7 @@ AUTH_USER_MODEL = "accounts.User"
 # FRAMEWORKS
 # ======================
 REST_FRAMEWORK = {
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
@@ -215,6 +217,11 @@ REST_FRAMEWORK = {
     "ALLOWED_VERSIONS": [
         "v1",
     ],
+    # ONE ERROR SHAPE FOR EVERY RESPONSE
+     "DEFAULT_RENDERER_CLASSES": (
+        "core.renderers.StandardJSONRenderer",
+        "rest_framework.renderers.BrowsableAPIRenderer",
+    ),
 
     # EXCEPTION HANDLING
     "EXCEPTION_HANDLER": "core.exceptions.custom_exception_handler",
@@ -371,6 +378,28 @@ CORS_ALLOWED_ORIGINS = [
 # FRONTEND URL
 # ===============
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+
+# ===============
+# API DOCS
+# ===============
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Trending Archive API",
+    "DESCRIPTION": "Backend API for the Trending Achieve blog platform.",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "SCHEMA_PATH_PREFIX": r"/api/v[0-9]",
+    "COMPONENT_SPLIT_REQUEST": True,
+    "APPEND_COMPONENTS": {
+        "securitySchemes": {
+            "jwtAuth": {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "JWT",
+            }
+        }
+    },
+    "SECURITY": [{"jwtAuth": []}],
+}
 
 # ===============
 # FASTER TESTS
