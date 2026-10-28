@@ -20,6 +20,8 @@ from .services import (create_auth_token,
                        send_password_reset_email,
                        rotate_refresh_token)
 
+from core.throttles import AuthEmailThrottle, LoginEmailThrottle, LoginIPThrottle
+
 logger = logging.getLogger("backblog")
 
 
@@ -31,7 +33,7 @@ logger = logging.getLogger("backblog")
 # :::: REGISTRATION
 class RegisterView(APIView):
     permission_classes = [AllowAny]
-    
+    throttle_classes = [AuthEmailThrottle]
     def post(self, request,*args, **kwargs):
 
         serializer = RegisterSerializer(data=request.data)
@@ -150,7 +152,7 @@ class VerifyEmailView(APIView):
 class ResendVerificationView(APIView):
 
     permission_classes = [AllowAny]
-
+    throttle_classes = [AuthEmailThrottle]
     def post(self, request,*args, **kwargs):
 
         email = request.data.get("email")
@@ -213,7 +215,7 @@ class ResendVerificationView(APIView):
 
 # :::: LOGIN
 class LoginView(APIView):
-
+    throttle_classes = [LoginIPThrottle, LoginEmailThrottle]
     permission_classes = [AllowAny]
     def post(self, request,*args, **kwargs):
         serializer = LoginSerializer(data=request.data)
@@ -278,7 +280,7 @@ class LoginView(APIView):
 class ForgotPasswordView(APIView):
 
     permission_classes = [AllowAny]
-
+    throttle_classes = [AuthEmailThrottle]
     def post(self, request,*args, **kwargs):
 
         email = request.data.get("email")

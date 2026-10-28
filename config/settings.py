@@ -6,6 +6,7 @@ load_dotenv()
 
 from pathlib import Path
 from datetime import timedelta
+from django.core.exceptions import ImproperlyConfigured
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -15,13 +16,19 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = str(os.getenv("SECRET_KEY"))
-#'django-insecure-%x&y+3a-nl5)%(=!iti0(a)3_tm8^4f-xkbmona_a6ny-g*cm$'
+SECRET_KEY = os.getenv("SECRET_KEY")
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+if not SECRET_KEY:
+    raise ImproperlyConfigured("SECRET_KEY is not set. Add it to your .env file.")
 
-ALLOWED_HOSTS = []
+# Off unless .env says otherwise, so a missing line can never switch debug on in production.
+DEBUG = os.getenv("DEBUG", "False").strip().lower() in ("1", "true", "yes", "on")
+
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+    if host.strip()
+]
 
 
 # Application definition
@@ -226,6 +233,13 @@ REST_FRAMEWORK = {
 
     # EXCEPTION HANDLING
     "EXCEPTION_HANDLER": "core.exceptions.custom_exception_handler",
+
+    # THROTTLING 
+    "DEFAULT_THROTTLE_RATES": {
+        "login": "10/min",         # per IP address
+        "login_email": "5/min",    # per email being tried
+        "auth_email": "5/hour",    # register + resend verification + forgot password, per IP
+    },
 }
 
 # ========
@@ -418,3 +432,9 @@ if len(sys.argv) > 1 and sys.argv[1] == "test":
     PASSWORD_HASHERS = [
         "django.contrib.auth.hashers.MD5PasswordHasher",
     ]
+    REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {
+        scope: "100000/min" for scope in REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]
+    }
+    CACHES = {
+           "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"},
+       }
