@@ -20,6 +20,7 @@ urlpatterns = [
     path("api/<str:version>/engagements/", include("engagements.urls")),
     path("api/<str:version>/notifications/", include("notifications.urls")),
     path("api/<str:version>/analytics/", include("analytics.urls")),
+       path("api/<str:version>/media/", include("media_library.urls")),
 ]
 
 # Unknown /api/ paths get a JSON 404 instead of an HTML page

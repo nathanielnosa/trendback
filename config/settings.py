@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     "comments",
     "engagements",
     "notifications",
+    "media_library",
     "analytics.apps.AnalyticsConfig",
     "django_celery_beat",
 ]
