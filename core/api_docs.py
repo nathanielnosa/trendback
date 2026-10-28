@@ -718,3 +718,140 @@ document("notifications.views.NotificationDetailView", _notification_detail)
 document("notifications.views.NotificationMarkReadView", _notification_mark_read)
 document("notifications.views.NotificationMarkAllReadView", _notification_mark_all)
 document("notifications.views.UnreadNotificationListView", _notification_unread)
+
+# ============================================================
+# MEDIA LIBRARY
+# ============================================================
+MEDIA = ["Media"]
+
+
+def _media_list_create():
+    from media_library.serializers import MediaSerializer, MediaUploadSerializer
+
+    return {
+        "get": dict(
+            tags=MEDIA,
+            summary="List uploaded images",
+            description=(
+                "Authors see only their own images. Admins and editors see everyone's; "
+                "add `mine=true` to narrow that to their own."
+            ),
+            parameters=PAGE
+            + [
+                OpenApiParameter("search", OpenApiTypes.STR, OpenApiParameter.QUERY, description="Matches the original file name or the alt text."),
+                OpenApiParameter("mine", OpenApiTypes.BOOL, OpenApiParameter.QUERY, description="Admins and editors: only my own uploads."),
+            ],
+            responses={200: page_of("MediaPage", MediaSerializer), 401: unauthorized(), 403: forbidden()},
+        ),
+        "post": dict(
+            tags=MEDIA,
+            summary="Upload an image",
+            description=(
+                "Send multipart/form-data with a `file` field and an optional `alt_text`. "
+                "JPEG, PNG, WebP and GIF only, up to 5 MB and 6000 px on either side. "
+                "The file is checked by its content, stored under a generated name, and a "
+                "400px WebP thumbnail is made. Use the returned `url` as a post's `featured_image`."
+            ),
+            request={"multipart/form-data": MediaUploadSerializer},
+            responses={201: MediaSerializer, 400: FIELD_ERRORS, 401: unauthorized(), 403: forbidden()},
+        ),
+    }
+
+
+def _media_detail():
+    from media_library.serializers import MediaSerializer, MediaUpdateSerializer
+
+    not_found = OpenApiResponse(response=error(), description="No such image, or it belongs to someone else.")
+    return {
+        "get": dict(
+            tags=MEDIA,
+            summary="Read one image",
+            responses={200: MediaSerializer, 401: unauthorized(), 403: forbidden(), 404: not_found},
+        ),
+        "patch": dict(
+            tags=MEDIA,
+            summary="Change an image's alt text",
+            description="Only `alt_text` can change. To replace the picture, upload a new one.",
+            request={
+                "application/json": MediaUpdateSerializer,
+                "multipart/form-data": MediaUpdateSerializer,
+            },
+            responses={200: MediaSerializer, 400: FIELD_ERRORS, 401: unauthorized(), 403: forbidden(), 404: not_found},
+        ),
+        "delete": dict(
+            tags=MEDIA,
+            summary="Delete an image",
+            description="Removes the image and its thumbnail from storage.",
+            responses={204: OpenApiResponse(description="Deleted."), 401: unauthorized(), 403: forbidden(), 404: not_found},
+        ),
+    }
+
+
+document("media_library.views.MediaListCreateView", _media_list_create)
+document("media_library.views.MediaDetailView", _media_detail)
+
+
+# ============================================================
+# SEO
+# ============================================================
+SEO = ["SEO"]
+
+
+def _post_seo():
+    open_graph = inline(
+        "OpenGraphTags",
+        lambda: {
+            "type": serializers.CharField(),
+            "site_name": serializers.CharField(),
+            "title": serializers.CharField(),
+            "description": serializers.CharField(),
+            "url": serializers.URLField(),
+            "image": serializers.URLField(allow_null=True),
+            "published_time": serializers.DateTimeField(allow_null=True),
+            "modified_time": serializers.DateTimeField(),
+            "author": serializers.CharField(),
+            "section": serializers.CharField(allow_null=True),
+            "tags": serializers.ListField(child=serializers.CharField()),
+        },
+    )
+    twitter = inline(
+        "TwitterCardTags",
+        lambda: {
+            "card": serializers.ChoiceField(choices=["summary", "summary_large_image"]),
+            "title": serializers.CharField(),
+            "description": serializers.CharField(),
+            "image": serializers.URLField(allow_null=True),
+        },
+    )
+    return {
+        "get": dict(
+            tags=SEO,
+            summary="SEO data for one post",
+            description=(
+                "Everything the frontend needs for the page's <head>: title, description, "
+                "canonical URL, robots, OpenGraph, Twitter card and JSON-LD. Only published, "
+                "public posts that are not scheduled for later are found. "
+                "The sitemap (`/sitemap.xml`) and RSS feed (`/rss.xml`) are served from the site root, "
+                "not under /api/."
+            ),
+            responses={
+                200: inline(
+                    "PostSEO",
+                    lambda: {
+                        "title": serializers.CharField(),
+                        "description": serializers.CharField(),
+                        "canonical_url": serializers.URLField(),
+                        "image": serializers.URLField(allow_null=True),
+                        "robots": serializers.CharField(),
+                        "open_graph": open_graph,
+                        "twitter": twitter,
+                        "json_ld": serializers.JSONField(),
+                    },
+                ),
+                404: error(),
+            },
+        )
+    }
+
+
+document("blog.views_seo.PostSEOView", _post_seo)
