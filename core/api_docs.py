@@ -428,6 +428,41 @@ def _post_detail():
         ),
     }
 
+def _post_by_slug():
+    from blog.serializers import PostSerializer
+
+    return {
+        "get": dict(
+            tags=POSTS,
+            summary="Read one published post by slug",
+            description="Same as reading by id, but addressed by the post's slug. Also records a page-view event.",
+            responses={200: PostSerializer, 404: msg("Post not found, or not public.")},
+        ),
+    }
+
+def _author_profile():
+    return {
+        "get": dict(
+            tags=POSTS,
+            summary="Public profile of an author",
+            description="Only people with at least one published public post have a profile.",
+            responses={
+                200: inline(
+                    "AuthorProfile",
+                    lambda: {
+                        "id": serializers.IntegerField(),
+                        "username": serializers.CharField(),
+                        "name": serializers.CharField(),
+                        "avatar": serializers.URLField(allow_null=True),
+                        "bio": serializers.CharField(allow_blank=True),
+                        "date_joined": serializers.DateTimeField(),
+                        "post_count": serializers.IntegerField(),
+                    },
+                ),
+                404: msg("Author not found."),
+            },
+        ),
+    }
 
 def _my_posts():
     from blog.serializers import PostSerializer
@@ -499,6 +534,8 @@ def _post_action(summary, request_serializer_name, success_text):
 
 document("blog.views.PostListCreateView", _post_list_create)
 document("blog.views.PostDetailView", _post_detail)
+document("blog.views.PostBySlugView", _post_by_slug)
+document("blog.views_authors.AuthorProfileView", _author_profile)
 document("blog.views_dashboard.MyPostsView", _my_posts)
 document("blog.views_dashboard.ReviewQueueView", _review_queue)
 document(

@@ -17,6 +17,7 @@ class TagSerializer(serializers.ModelSerializer):
 class PostSerializer(serializers.ModelSerializer):
 
     author_name = serializers.CharField(source="author.get_full_name",read_only=True)
+    author_username = serializers.CharField(source="author.username", read_only=True)
     category_details = CategorySerializer(source="category",read_only=True)
     tags_details = TagSerializer(source="tags",many=True,read_only=True)
     reviewed_at = serializers.DateTimeField(read_only=True)
@@ -35,6 +36,7 @@ class PostSerializer(serializers.ModelSerializer):
 
             "author",
             "author_name",
+            "author_username",
 
             "category",
             "category_details",
@@ -74,6 +76,7 @@ class PostSerializer(serializers.ModelSerializer):
             "author",
             "slug",
             "author_name",
+            "author_username",
             "published_at",
             "reviewed_at",
             "reviewed_by",

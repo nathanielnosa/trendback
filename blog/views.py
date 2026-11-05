@@ -1,7 +1,9 @@
+from datetime import timedelta
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny
+from rest_framework.test import APITestCase
 
 from django.utils import timezone
 from django.db import models
@@ -16,6 +18,7 @@ from accounts.permissions import (
     CanPublishPost
 
 )
+from accounts.models import User
 
 from .models import Post, Category, Tag
 from .serializers import (
@@ -205,6 +208,41 @@ class PostDetailView(APIView):
             status=status.HTTP_204_NO_CONTENT
         )
 
+# ===============================
+# FETCH POST BY SLUG
+# ===============================
+class PostBySlugView(APIView):
+    """Public read of one published post by its slug (used by the frontend post page)."""
+
+    permission_classes = [AllowAny]
+
+    # ::: get a published, public post by slug
+    def get(self, request, slug, *args, **kwargs):
+        post = (
+            Post.objects.select_related("author", "category")
+            .prefetch_related("tags")
+            .filter(
+                slug=slug,
+                status=Post.Status.PUBLISHED,
+                visibility=Post.Visibility.PUBLIC,
+            )
+            .first()
+        )
+        if not post:
+            return Response({"message": "Post not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            record_event(
+                event_type=AnalyticsEvent.EventType.POST_VIEW,
+                actor=request.user if request.user.is_authenticated else None,
+                post=post,
+                source="post_detail",
+            )
+        except Exception:
+            logger.exception("Failed to record post view event.")
+
+        serializer = PostSerializer(post, context={"request": request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
 # ===============================
 # CATEGORY LIST / CREATE
 # ===============================

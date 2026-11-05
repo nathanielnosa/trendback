@@ -3,6 +3,7 @@ from django.urls import path
 from .views import (
     PostListCreateView,
     PostDetailView,
+    PostBySlugView,
     CategoryListCreateView,
     CategoryDetailView,
     TagListCreateView,
@@ -12,11 +13,13 @@ from .views import (
     PostSubmitReviewView
 )
 from .views_dashboard import MyPostsView, ReviewQueueView
+from .views_authors import AuthorProfileView
 
 urlpatterns = [
 
     # POSTS
     path("posts/",PostListCreateView.as_view(),name="post-list-create"),
+    path("posts/by-slug/<slug:slug>/", PostBySlugView.as_view(), name="post-by-slug"),
     path("posts/<uuid:post_id>/",PostDetailView.as_view(),name="post-detail"),
 
     # DASHBOARD
@@ -39,4 +42,6 @@ urlpatterns = [
     path(
     "posts/<uuid:post_id>/submit-review/",PostSubmitReviewView.as_view(),name="post-submit-review"
 ),
+    # AUTHOR
+    path("authors/<str:username>/", AuthorProfileView.as_view(), name="author-profile"),
 ]
