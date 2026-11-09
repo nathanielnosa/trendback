@@ -48,8 +48,14 @@ class RegisterView(APIView):
             verification_url = (
                             f"{settings.FRONTEND_URL}/verify-email/?token={raw_token}"
                             )
-            send_verification_email(user,verification_url)
-            logger.info("User registered successfully: %s",user.email)
+            email_sent = True
+            try:
+                send_verification_email(user, verification_url)
+            except Exception:
+                email_sent = False
+                logger.exception("Could not send verification email to %s", user.email)
+            logger.info("User registered successfully: %s", user.email)
+            
             return Response(
                 {
                     "message": "Account created successfully.",
@@ -59,7 +65,8 @@ class RegisterView(APIView):
                         "username": user.username,
                         "first_name": user.first_name,
                         "last_name": user.last_name,
-                    }
+                    },
+                    "email_sent": email_sent,
                 },
                 status=status.HTTP_201_CREATED
             )

@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.models import User
+from engagements.models import Follow
 
 from .models import Post
 
@@ -43,6 +44,7 @@ class AuthorProfileView(APIView):
                 "bio": author.bio,
                 "date_joined": author.date_joined,
                 "post_count": author.post_count,
+                "followers_count": Follow.objects.filter(following=author).count(),
             },
             status=status.HTTP_200_OK,
         )

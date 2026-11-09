@@ -56,11 +56,33 @@ class BookmarkSerializer(serializers.ModelSerializer):
 
     user_name = serializers.CharField(source="user.get_full_name",read_only=True)
     post_title = serializers.CharField(source="post.title",read_only=True)
+    post_slug = serializers.CharField(source="post.slug",read_only=True)
+    post_excerpt = serializers.CharField(source="post.excerpt",read_only=True)
+    post_author_name = serializers.CharField(source="post.author.get_full_name",read_only=True)
+    post_published_at = serializers.DateTimeField(source="post.published_at",read_only=True)
+    post_reading_time = serializers.IntegerField(source="post.reading_time",read_only=True)
+    post_featured_image = serializers.SerializerMethodField()
+
     class Meta:
         model = Bookmark
 
-        fields = ("id","user","user_name","post","post_title","created_at")
-        read_only_fields = ("id","user","user_name","post_title","created_at")
+        fields = (
+            "id","user","user_name",
+            "post","post_title","post_slug","post_excerpt",
+            "post_author_name","post_published_at","post_reading_time","post_featured_image",
+            "created_at",
+        )
+        read_only_fields = fields
+
+    # ::: the story's picture as a full address, or None when it has none
+    # def get_post_featured_image(self, obj):
+    #     image = obj.post.featured_image
+    #     if not image:
+    #         return None
+    #     request = self.context.get("request")
+    #     return request.build_absolute_uri(image.url) if request else image.url
+    def get_post_featured_image(self, obj):
+        return obj.post.featured_image or None
 
     def validate(self, attrs):
         request = self.context.get("request")

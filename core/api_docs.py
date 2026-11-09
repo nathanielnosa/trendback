@@ -167,8 +167,7 @@ def _register():
             responses={
                 201: inline(
                     "RegisterResponse",
-                    lambda: {"message": serializers.CharField(), "user": user_summary("RegisteredUser")},
-                ),
+                    lambda: {"message": serializers.CharField(), "email_sent": serializers.BooleanField(), "user": user_summary("RegisteredUser")},                ),
                 400: FIELD_ERRORS,
             },
         )
@@ -457,6 +456,7 @@ def _author_profile():
                         "bio": serializers.CharField(allow_blank=True),
                         "date_joined": serializers.DateTimeField(),
                         "post_count": serializers.IntegerField(),
+                        "followers_count": serializers.IntegerField(),
                     },
                 ),
                 404: msg("Author not found."),

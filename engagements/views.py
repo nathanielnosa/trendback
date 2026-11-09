@@ -406,7 +406,7 @@ class BookmarkListView(APIView):
                 post__status=Post.Status.PUBLISHED,
                 post__visibility=Post.Visibility.PUBLIC,
             )
-            .select_related("post", "user")
+            .select_related("post", "post__author", "user")
         )
         serializer = BookmarkSerializer(bookmarks,many=True,context={"request": request})
 

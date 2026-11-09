@@ -6,6 +6,8 @@ from rest_framework.test import APITestCase
 
 from accounts.models import User
 
+from engagements.models import Follow
+
 from .models import Post
 
 
@@ -65,3 +67,17 @@ class AuthorProfileTests(APITestCase):
         post = self.publish("With username")
         response = self.client.get(f"/api/v1/blog/posts/by-slug/{post.slug}/")
         self.assertEqual(response.data["author_username"], "ada")
+
+    def test_profile_shows_followers_count(self):
+        self.publish("One")
+        fan = User.objects.create_user(
+            email="fan@example.com",
+            username="fan",
+            first_name="Fan",
+            last_name="One",
+            password="StrongPass123!",
+            is_verified=True,
+        )
+        Follow.objects.create(follower=fan, following=self.author)
+        response = self.client.get("/api/v1/blog/authors/ada/")
+        self.assertEqual(response.data["followers_count"], 1)
