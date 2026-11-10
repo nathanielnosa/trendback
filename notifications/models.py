@@ -13,6 +13,9 @@ class Notification(models.Model):
         BOOKMARK = "bookmark", "Bookmark"
         FOLLOW = "follow", "Follow"
         PUBLISH = "publish", "Publish"
+        REVIEW_SUBMITTED = "review_submitted", "Review submitted"
+        POST_APPROVED = "post_approved", "Post approved"
+        POST_REJECTED = "post_rejected", "Post rejected"
 
     id = models.UUIDField(primary_key=True,default=uuid.uuid4,editable=False)
     recipient = models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.CASCADE,related_name="notifications")

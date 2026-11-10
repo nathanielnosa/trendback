@@ -33,8 +33,11 @@ from paginations.pagination import PostPagination
 
 from analytics.models import AnalyticsEvent
 from analytics.services import record_event
-from notifications.services import notify_post_published
-
+from notifications.services import (
+    notify_post_published,
+    notify_review_submitted,
+    notify_post_reviewed,
+)
 import logging
 logger = logging.getLogger("backblog")
 
@@ -582,6 +585,7 @@ class PostReviewView(APIView):
             post.save(
                 update_fields=["status","reviewed_by","reviewed_at","review_notes","updated_at",]
             )
+            notify_post_reviewed(post, request.user, approved=True)
 
             return Response(
                 {
@@ -600,6 +604,7 @@ class PostReviewView(APIView):
             post.save(
                 update_fields=["status","reviewed_by","reviewed_at","review_notes","updated_at",]
             )
+            notify_post_reviewed(post, request.user, approved=False)
 
             return Response(
                 {
@@ -774,7 +779,7 @@ class PostSubmitReviewView(APIView):
                 "updated_at",
             ]
         )
-
+        notify_review_submitted(post)
         return Response(
             {
                 "message": (

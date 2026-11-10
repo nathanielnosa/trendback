@@ -226,3 +226,75 @@ def notify_post_published(post, actor=None):
         logger.exception("Failed to notify followers about a published post.")
 
     return created
+
+# ==========================
+# REVIEW WORKFLOW
+# ==========================
+def notify_review_submitted(post):
+    """
+    Tell every active editor and admin that a post is waiting for review.
+    Returns how many notifications were created.
+    """
+    try:
+        # Imported here to avoid a circular import between the apps.
+        from django.contrib.auth import get_user_model
+
+        User = get_user_model()
+        author = post.author
+
+        editors = (
+            User.objects
+            .filter(role__in=["ADMIN", "EDITOR"], is_active=True)
+            .exclude(pk=author.pk)
+        )
+
+        notifications = [
+            Notification(
+                recipient=editor,
+                actor=author,
+                notification_type=Types.REVIEW_SUBMITTED,
+                title="A post is waiting for review",
+                message=f'{_name(author)} submitted "{post.title}" for review.',
+                related_object_id=str(post.id),
+                related_url=f"/desk/review/{post.id}",
+            )
+            for editor in editors
+        ]
+
+        Notification.objects.bulk_create(notifications, batch_size=500)
+        return len(notifications)
+    except Exception:
+        logger.exception("Failed to notify editors about a post submitted for review.")
+        return 0
+
+
+def notify_post_reviewed(post, reviewer, approved):
+    """
+    Tell the author that their post was approved, or sent back with a note.
+    Returns the notification, or None if nothing was created.
+    """
+    try:
+        if approved:
+            return create_notification(
+                recipient=post.author,
+                actor=reviewer,
+                notification_type=Types.POST_APPROVED,
+                title="Your post was approved",
+                message=f'"{post.title}" was approved and will be published soon.',
+                related_object_id=post.id,
+                related_url=f"/studio/{post.id}/edit",
+            )
+
+        note = f' Note from the editor: "{post.review_notes}"' if post.review_notes else ""
+        return create_notification(
+            recipient=post.author,
+            actor=reviewer,
+            notification_type=Types.POST_REJECTED,
+            title="Your post was sent back",
+            message=f'"{post.title}" needs changes before it can go live.{note}',
+            related_object_id=post.id,
+            related_url=f"/studio/{post.id}/edit",
+        )
+    except Exception:
+        logger.exception("Failed to build review notification.")
+        return None
