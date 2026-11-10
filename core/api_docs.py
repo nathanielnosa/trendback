@@ -484,6 +484,39 @@ def _my_posts():
         )
     }
 
+def _my_post_detail():
+    from blog.serializers import PostSerializer
+
+    return {
+        "get": dict(
+            tags=POSTS,
+            summary="Read one of your posts for editing",
+            description="Any status, including drafts. Editors and admins can read any post.",
+            responses={200: PostSerializer, 404: msg("Post not found.")},
+        ),
+    }
+
+
+def _media_upload():
+    return {
+        "post": dict(
+            tags=POSTS,
+            summary="Upload a picture for a post",
+            description="Multipart form with one `file` (JPG, PNG, GIF or WebP, up to 5 MB). Answers with the picture's full address.",
+            request=inline("MediaUploadRequest", lambda: {"file": serializers.ImageField()}),
+            responses={
+                201: inline(
+                    "MediaUploadResponse",
+                    lambda: {
+                        "url": serializers.URLField(),
+                        "name": serializers.CharField(),
+                        "size": serializers.IntegerField(),
+                    },
+                ),
+                400: msg("The file is missing, too large, or not a valid picture."),
+            },
+        ),
+    }
 
 def _review_queue():
     from blog.serializers import PostSerializer
@@ -538,6 +571,8 @@ document("blog.views.PostBySlugView", _post_by_slug)
 document("blog.views_authors.AuthorProfileView", _author_profile)
 document("blog.views_dashboard.MyPostsView", _my_posts)
 document("blog.views_dashboard.ReviewQueueView", _review_queue)
+document("blog.views_studio.MyPostDetailView", _my_post_detail)
+document("blog.views_studio.MediaUploadView", _media_upload)
 document(
     "blog.views.PostSubmitReviewView",
     _post_action("Submit a draft for review", "PostSubmitReviewSerializer", "Post is now under review."),

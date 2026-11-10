@@ -14,6 +14,7 @@ from .views import (
 )
 from .views_dashboard import MyPostsView, ReviewQueueView
 from .views_authors import AuthorProfileView
+from .views_studio import MediaUploadView, MyPostDetailView
 
 urlpatterns = [
 
@@ -25,7 +26,9 @@ urlpatterns = [
     # DASHBOARD
     path("my-posts/",MyPostsView.as_view(),name="my-posts"),
     path("review-queue/",ReviewQueueView.as_view(),name="review-queue"),
-
+    path("my-posts/<uuid:post_id>/", MyPostDetailView.as_view(), name="my-post-detail"),
+    path("media/", MediaUploadView.as_view(), name="media-upload"),
+    
     # CATEGORIES
     path("categories/",CategoryListCreateView.as_view(),name="category-list-create"),
     path("categories/<uuid:category_id>/",CategoryDetailView.as_view(),name="category-detail"),
