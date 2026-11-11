@@ -205,6 +205,7 @@ MAILERS = {
 
 AUTH_USER_MODEL = "accounts.User"
 
+
 # ======================
 # FRAMEWORKS
 # ======================
@@ -401,6 +402,11 @@ FRONTEND_POST_PATH = "/posts/{slug}"
 # FRONTEND URL
 # ===============
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+
+# ======================
+# GOOGLE AUTH
+# ======================
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
 
 # ===============
 # API DOCS

@@ -14,6 +14,7 @@ from django.conf import settings
 
 from .serializers import *
 from .models import AuthToken,User
+from .google_auth import get_or_create_google_user, verify_google_credential
 from .services import (create_auth_token,
                        send_verification_email,
                        get_token_hash,
@@ -630,4 +631,49 @@ class ChangePasswordView(APIView):
                 "message": "Password changed successfully."
             },
             status=status.HTTP_200_OK
+        )
+
+# :::: GOOGLE SIGN-IN
+class GoogleLoginView(APIView):
+    permission_classes = [AllowAny]
+    throttle_classes = [LoginIPThrottle]
+
+    # Log in (or sign up) with the token from Google's button.
+    def post(self, request, *args, **kwargs):
+        credential = request.data.get("credential")
+        if not credential:
+            return Response({"message": "Google credential is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            info = verify_google_credential(credential)
+        except ValueError:
+            logger.warning("Google sign-in rejected.", exc_info=True)
+            return Response(
+                {"message": "Google sign-in failed. Please try again."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        user, created = get_or_create_google_user(info)
+
+        if not user.is_active:
+            return Response({"message": "Your account has been deactivated."}, status=status.HTTP_403_FORBIDDEN)
+
+        logger.info("Google sign-in (%s): %s", "new account" if created else "existing account", user.email)
+        refresh = RefreshToken.for_user(user)
+
+        return Response(
+            {
+                "message": "Login successful.",
+                "tokens": {"access": str(refresh.access_token), "refresh": str(refresh)},
+                "user": {
+                    "id": user.id,
+                    "email": user.email,
+                    "username": user.username,
+                    "first_name": user.first_name,
+                    "last_name": user.last_name,
+                    "role": user.role,
+                    "is_verified": user.is_verified,
+                },
+            },
+            status=status.HTTP_200_OK,
         )

@@ -4,7 +4,7 @@ from django.contrib import admin
 from django.urls import path, include
 from blog.views_seo import rss_feed, sitemap_xml
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
-
+from blog.views_share import share_page
 urlpatterns = [
     path('admin/', admin.site.urls),
 
@@ -26,6 +26,9 @@ urlpatterns = [
     path("sitemap.xml", sitemap_xml, name="sitemap"),
     path("rss.xml", rss_feed, name="rss"),
     path("api/<str:version>/seo/", include("blog.urls_seo")),
+    
+    # SOCIAL SHARE
+    path("share/posts/<slug:slug>/", share_page, name="share-post"),
 ]
 
 # Unknown /api/ paths get a JSON 404 instead of an HTML page
