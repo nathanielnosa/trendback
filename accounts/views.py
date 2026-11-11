@@ -18,7 +18,9 @@ from .services import (create_auth_token,
                        send_verification_email,
                        get_token_hash,
                        send_password_reset_email,
-                       rotate_refresh_token)
+                       rotate_refresh_token,
+                       frontend_link
+                       )
 
 from core.throttles import AuthEmailThrottle, LoginEmailThrottle, LoginIPThrottle
 
@@ -45,9 +47,7 @@ class RegisterView(APIView):
                 expiration_minutes=60
                 )
             
-            verification_url = (
-                            f"{settings.FRONTEND_URL}/verify-email/?token={raw_token}"
-                            )
+            verification_url = frontend_link("/verify-email", raw_token)
             email_sent = True
             try:
                 send_verification_email(user, verification_url)
@@ -203,14 +203,13 @@ class ResendVerificationView(APIView):
             expiration_minutes=60
         )
 
-        verification_url = (
-            f"{settings.FRONTEND_URL}/verify-email/?token={raw_token}"
-        )
+        verification_url = frontend_link("/verify-email", raw_token)
 
-        send_verification_email(
-            user,
-            verification_url
-        )
+        try:
+            send_verification_email(user, verification_url)
+        except Exception:
+            logger.exception("Could not send verification email to %s", user.email)
+            
         logger.info("Verification email requested: %s",user.email)
         return Response(
             {
@@ -315,10 +314,7 @@ class ForgotPasswordView(APIView):
                 expiration_minutes=30
             )
 
-            reset_url = (
-               f"{settings.FRONTEND_URL}/reset-password/"
-                f"?token={raw_token}"
-            )
+            reset_url = frontend_link("/reset-password", raw_token)
 
             send_password_reset_email(
                 user,

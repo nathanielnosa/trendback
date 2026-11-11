@@ -27,7 +27,8 @@ from .serializers import (
     TagSerializer,
     PostReviewSerializer,
     PostPublishSerializer,
-    PostSubmitReviewSerializer
+    PostSubmitReviewSerializer,
+    PostListSerializer
 )
 from paginations.pagination import PostPagination
 
@@ -100,7 +101,7 @@ class PostListCreateView(APIView):
         paginator = PostPagination()
         page = paginator.paginate_queryset(posts, request)
         
-        serializer = PostSerializer(page, many=True, context={"request": request})
+        serializer = PostListSerializer(page, many=True, context={"request": request})
         return paginator.get_paginated_response(serializer.data)
 
     # :::create post

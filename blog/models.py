@@ -128,3 +128,18 @@ class Post(models.Model):
             self.status == self.Status.PUBLISHED
             and self.visibility == self.Visibility.PUBLIC
         )
+
+# ::: A picture a writer uploaded (so it can be listed and reused)
+class MediaAsset(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="media_assets")
+    url = models.URLField(max_length=500)
+    path = models.CharField(max_length=500)  # where the file sits in storage
+    size = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.url

@@ -66,7 +66,7 @@ def send_verification_email(user,verification_url):
 
         message=(
             f"Hello {user.first_name},\n\n"
-            "Welcome to BackBlog.\n\n"
+            "Welcome to Trending Archive.\n\n"
             "Please verify your email address:\n\n"
             f"{verification_url}\n\n"
             "This link will expire in 60min."
@@ -85,7 +85,7 @@ def send_verification_email(user,verification_url):
 def send_password_reset_email(user,reset_url):
 
     send_mail(
-        subject="Reset your BackBlog password",
+        subject="Reset your Trending Archive password",
 
         message=(
             f"Hello {user.first_name},\n\n"
@@ -130,3 +130,9 @@ def rotate_refresh_token(refresh_token):
         "access": str(new_refresh.access_token),
         "refresh": str(new_refresh),
     }
+
+# ::: Build a link to a page on the website, from the FRONTEND_URL setting
+def frontend_link(path, token):
+    """Return e.g. https://yoursite.com/verify-email?token=abc (no hard-coded address)."""
+    base = settings.FRONTEND_URL.rstrip("/")
+    return f"{base}{path}?token={token}"

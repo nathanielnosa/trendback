@@ -1,16 +1,18 @@
 import uuid
 
 from django.core.files.storage import default_storage
+from django.db.models import Q
 from django.utils import timezone
 from PIL import Image
 from rest_framework import status
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.permissions import CanCreatePost
 
-from .models import Post
+from .models import MediaAsset, Post
 from .serializers import PostSerializer
 
 # Largest picture a writer may upload, in bytes (5 MB).
@@ -49,11 +51,38 @@ class MyPostDetailView(APIView):
 # =============================
 # MEDIA UPLOAD (pictures for posts)
 # =============================
+class MediaPagination(PageNumberPagination):
+    """The media library shows 24 pictures at a time."""
+
+    page_size = 24
+    page_size_query_param = "page_size"
+    max_page_size = 60
+
+
+def media_data(asset):
+    """The fields the library page needs for one picture."""
+    return {
+        "id": str(asset.id),
+        "url": asset.url,
+        "size": asset.size,
+        "created_at": asset.created_at,
+    }
+
+# =============================
+# MEDIA UPLOAD
+# =============================
 class MediaUploadView(APIView):
-    """Upload one picture; answers with its full address to use in a post."""
+    """Upload one picture (POST) or list the pictures you uploaded (GET)."""
 
     permission_classes = [CanCreatePost]
     parser_classes = [MultiPartParser, FormParser]
+
+    # ::: list my uploaded pictures, newest first
+    def get(self, request, *args, **kwargs):
+        assets = MediaAsset.objects.filter(owner=request.user)
+        paginator = MediaPagination()
+        page = paginator.paginate_queryset(assets, request, view=self)
+        return paginator.get_paginated_response([media_data(asset) for asset in page])
 
     # ::: check and store an uploaded picture
     def post(self, request, *args, **kwargs):
@@ -85,7 +114,37 @@ class MediaUploadView(APIView):
         saved = default_storage.save(name, upload)
         url = request.build_absolute_uri(default_storage.url(saved))
 
+        asset = MediaAsset.objects.create(owner=request.user, url=url, path=saved, size=upload.size)
+
         return Response(
-            {"url": url, "name": saved, "size": upload.size},
+            {**media_data(asset), "name": saved},
             status=status.HTTP_201_CREATED,
         )
+
+
+# =============================
+# MEDIA DETAIL (delete one picture)
+# =============================
+class MediaDetailView(APIView):
+    """Delete one picture you uploaded (admins can delete any), unless a post still uses it."""
+
+    permission_classes = [CanCreatePost]
+
+    # ::: delete a picture from the library and from storage
+    def delete(self, request, asset_id, *args, **kwargs):
+        asset = MediaAsset.objects.filter(id=asset_id).first()
+
+        if not asset or (asset.owner_id != request.user.id and request.user.role != "ADMIN"):
+            return Response({"message": "Picture not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Deleting a picture a post still shows would leave a broken image.
+        in_use = Post.objects.filter(Q(featured_image=asset.url) | Q(content__contains=asset.url)).count()
+        if in_use:
+            return Response(
+                {"message": f"This picture is used in {in_use} post(s). Remove it from them first."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        default_storage.delete(asset.path)
+        asset.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)

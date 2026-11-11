@@ -6,13 +6,12 @@ from accounts.permissions import CanCreatePost, CanReviewPost
 from paginations.pagination import PostPagination
 
 from .models import Post
-from .serializers import PostSerializer
-
+from .serializers import PostListSerializer
 
 def _paginated_posts(view, request, posts):
     paginator = PostPagination()
     page = paginator.paginate_queryset(posts, request, view=view)
-    serializer = PostSerializer(page, many=True, context={"request": request})
+    serializer = PostListSerializer(page, many=True, context={"request": request})
     return paginator.get_paginated_response(serializer.data)
 
 

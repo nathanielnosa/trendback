@@ -143,6 +143,12 @@ class PostSerializer(serializers.ModelSerializer):
                 attrs.pop("is_trending", None)
         return attrs
 
+# ::: Post list serializer: the same as PostSerializer but without the full article text
+class PostListSerializer(PostSerializer):
+    class Meta(PostSerializer.Meta):
+        # Lists show cards, so the heavy "content" field is left out.
+        fields = tuple(name for name in PostSerializer.Meta.fields if name != "content")
+        
 # Review Post Serializer
 class PostReviewSerializer(serializers.Serializer):
 
